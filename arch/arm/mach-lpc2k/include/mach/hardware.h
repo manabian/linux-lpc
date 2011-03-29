@@ -21,6 +21,7 @@
 #define APB_TIMER1_BASE		0xe0008000
 #define APB_UART0_BASE		0xe000c000
 #define APB_GPIO_BASE		0xe0028000
+#define APB_PINSEL_BASE		0xe002c000
 #define APB_SCB_BASE		0xe01fc000
 #define APH_VIC_BASE		0xfffff000
 
