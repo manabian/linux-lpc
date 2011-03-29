@@ -24,7 +24,9 @@ void __init arm_mm_memblock_reserve(void)
 	 * some architectures which the DRAM is the exception vector to trap,
 	 * alloc_page breaks with error, although it is not NULL, but "0."
 	 */
+#if PHYS_OFFSET <= CONFIG_VECTORS_BASE
 	memblock_reserve(CONFIG_VECTORS_BASE, PAGE_SIZE);
+#endif
 }
 
 /*

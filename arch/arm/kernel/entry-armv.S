@@ -1208,6 +1208,7 @@ __stubs_end:
 
 	.globl	__vectors_start
 __vectors_start:
+#ifndef CONFIG_ARCH_LPC2K
  ARM(	swi	SYS_ERROR0	)
  THUMB(	svc	#0		)
  THUMB(	nop			)
@@ -1218,6 +1219,28 @@ __vectors_start:
 	W(b)	vector_addrexcptn + stubs_offset
 	W(b)	vector_irq + stubs_offset
 	W(b)	vector_fiq + stubs_offset
+#else /* CONFIG_ARCH_LPC2K */
+	/*
+	 * The LPC2K remaps 64 bytes of SRAM to address 0 for vectors. This
+	 * means that the stubs can't be in the same page, and end up too far
+	 * away from the vectors to use a branch instruction.
+	 */
+	swi	SYS_ERROR0
+	ldr	pc, .vector_und
+	ldr	pc, .vector_swi
+	ldr	pc, .vector_pabt
+	ldr	pc, .vector_dabt
+	ldr	pc, .vector_addrexcptn
+	ldr	pc, .vector_irq
+	ldr	pc, .vector_fiq
+.vector_und:		.word   vector_und
+.vector_swi:		.word   vector_swi
+.vector_pabt:		.word   vector_pabt
+.vector_dabt:		.word   vector_dabt
+.vector_addrexcptn:	.word   vector_addrexcptn
+.vector_irq:		.word   vector_irq
+.vector_fiq:		.word   vector_fiq
+#endif
 
 	.globl	__vectors_end
 __vectors_end:
