@@ -2,4 +2,11 @@ if ARCH_LPC2K
 
 comment "LPC2K machines"
 
+config MACH_EA2478DEVKIT
+	bool "Embedded Artists LPC2478 Developer's Kit"
+	help
+	  Say Y if you want the kernel to support the EmbeddedArtists
+	  LPC2478 Developer's Kit. For more hardware details, see:
+	  http://www.embeddedartists.com/products/kits/lpc2478_kit.php
+
 endif
