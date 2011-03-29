@@ -501,6 +501,7 @@ config ARCH_LPC2K
 	depends on !MMU
 	select CPU_ARM7TDMI
 	select ARM_VIC
+	select CLKDEV_LOOKUP
 	select GENERIC_CLOCKEVENTS
 	help
 	  Support for NXP LPC2K family of SoCs. These SoCs are based on

@@ -1,1 +1,1 @@
-obj-y	:= irq.o
+obj-y	:= clock.o irq.o
