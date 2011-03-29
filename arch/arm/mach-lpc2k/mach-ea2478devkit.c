@@ -8,6 +8,8 @@
  */
 
 #include <linux/module.h>
+#include <linux/amba/pl022.h>
+#include <linux/amba/mmci.h>
 #include <linux/gpio.h>
 #include <linux/io.h>
 
@@ -96,9 +98,27 @@ static unsigned long mfp_cfgs[] __initdata = {
 	P1_12_MCIDAT3,
 };
 
+static struct pl022_ssp_controller ssp0_plat_data = {
+	.bus_id = 0,
+	.enable_dma = 0,
+	.num_chipselect = 1,
+};
+
+static struct mmci_platform_data mci_plat_data = {
+	.ocr_mask = MMC_VDD_32_33 | MMC_VDD_33_34,
+	.capabilities = MMC_CAP_4_BIT_DATA,
+	.f_max = 200000,
+	.gpio_cd = -1,
+	.gpio_wp = -1,
+};
+
 void __init ea2478devkit_init_machine(void)
 {
 	lpc2k_mfp_config(mfp_cfgs, ARRAY_SIZE(mfp_cfgs));
+
+	lpc2k_add_uart(0);
+	lpc2k_add_ssp(0, &ssp0_plat_data);
+	lpc2k_add_mci(&mci_plat_data, 0 /* active low */);
 }
 
 static void __init ea2478devkit_init_irq(void)

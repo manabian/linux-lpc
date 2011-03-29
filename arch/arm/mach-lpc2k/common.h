@@ -16,6 +16,10 @@ extern void lpc2k_init_clocks(unsigned long xtal, unsigned long rtc);
 extern void lpc2k_mfp_config(unsigned long *mfp_cfgs, int num);
 extern void lpc2k_init_irq(void);
 
+extern void lpc2k_add_uart(int nr);
+extern void lpc2k_add_ssp(int nr, void *platform_data);
+extern void lpc2k_add_mci(void *platform_data, int pwr_high);
+
 extern struct sys_timer lpc2k_timer;
 
 #endif /* LPC2K_COMMON_H */

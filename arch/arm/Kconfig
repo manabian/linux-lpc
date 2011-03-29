@@ -501,6 +501,7 @@ config ARCH_LPC2K
 	depends on !MMU
 	select CPU_ARM7TDMI
 	select ARM_VIC
+	select ARM_AMBA
 	select CLKDEV_LOOKUP
 	select GENERIC_CLOCKEVENTS
 	select ARCH_REQUIRE_GPIOLIB
