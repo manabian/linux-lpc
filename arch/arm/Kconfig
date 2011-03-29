@@ -495,6 +495,17 @@ config ARCH_LOKI
 	help
 	  Support for the Marvell Loki (88RC8480) SoC.
 
+config ARCH_LPC2K
+	bool "NXP LPC2K Family"
+	depends on !MMU
+	select CPU_ARM7TDMI
+	select ARM_VIC
+	select GENERIC_CLOCKEVENTS
+	help
+	  Support for NXP LPC2K family of SoCs. These SoCs are based on
+	  an ARM7TDMI-S core, and have optional on-chip flash and SRAM,
+	  also UART, I2C, SPI, SSP, CAN, RTC, and other peripherals.
+
 config ARCH_LPC32XX
 	bool "NXP LPC32XX"
 	select CPU_ARM926T
@@ -935,6 +946,8 @@ source "arch/arm/mach-kirkwood/Kconfig"
 source "arch/arm/mach-ks8695/Kconfig"
 
 source "arch/arm/mach-loki/Kconfig"
+
+source "arch/arm/mach-lpc2k/Kconfig"
 
 source "arch/arm/mach-lpc32xx/Kconfig"
 
