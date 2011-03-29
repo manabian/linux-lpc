@@ -44,6 +44,9 @@
 #define IRQ_LPC2K_I2C2		30
 #define IRQ_LPC2K_I2S		31
 
-#define NR_IRQS			32
+#define IRQ_LPC2K_PORT0(pin)	(32 + (pin))
+#define IRQ_LPC2K_PORT2(pin)	(64 + (pin))
+
+#define NR_IRQS			96
 
 #endif /* MACH_LPC2K_IRQS_H */

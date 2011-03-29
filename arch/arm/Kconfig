@@ -503,6 +503,7 @@ config ARCH_LPC2K
 	select ARM_VIC
 	select CLKDEV_LOOKUP
 	select GENERIC_CLOCKEVENTS
+	select ARCH_REQUIRE_GPIOLIB
 	help
 	  Support for NXP LPC2K family of SoCs. These SoCs are based on
 	  an ARM7TDMI-S core, and have optional on-chip flash and SRAM,
