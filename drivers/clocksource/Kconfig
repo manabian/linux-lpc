@@ -90,6 +90,16 @@ config CLKSRC_EFM32
 	  Support to use the timers of EFM32 SoCs as clock source and clock
 	  event device.
 
+config CLKSRC_LPC32XX
+	bool "Clocksource for NXP's LPC SoC series" if !ARCH_LPC18XX
+	depends on OF && ARM && (ARCH_LPC18XX || COMPILE_TEST)
+	select CLKSRC_MMIO
+	default ARCH_LPC18XX
+	help
+	  Support to use the timers of LPC SoCs as clock source and clock
+	  event device. These timers are present on many NXP devices
+	  including LPC32xx, LPC17xx, LPC18xx and LPC43xx.
+
 config ARM_ARCH_TIMER
 	bool
 	select CLKSRC_OF if OF
