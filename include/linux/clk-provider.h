@@ -389,9 +389,10 @@ struct clk_mux {
 	void __iomem	*reg;
 	u32		*table;
 	u32		mask;
+	spinlock_t	*lock;
 	u8		shift;
 	u8		flags;
-	spinlock_t	*lock;
+	u8		table_size;
 };
 
 #define CLK_MUX_INDEX_ONE		BIT(0)
