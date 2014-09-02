@@ -280,6 +280,17 @@ config PNX4008_WATCHDOG
 
 	  Say N if you are unsure.
 
+config LPC2K_WATCHDOG
+	tristate "LCP2K Watchdog"
+	depends on ARCH_LPC2K
+	help
+	  Say Y here if to include support for the watchdog timer
+	  include in the LPC23xx and LPC24xx processors.
+	  This driver can be built as a module by choosing M. The module
+	  will be called lpc2k_wdt.
+
+	  Say N if you are unsure.
+
 config IOP_WATCHDOG
 	tristate "IOP Watchdog"
 	depends on ARCH_IOP13XX
