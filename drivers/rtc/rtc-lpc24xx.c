@@ -1,25 +1,26 @@
 /*
+ * Driver for NXP LPC24xx/178x/18xx/43xx Real-Time Clock (RTC)
+ *
  * Copyright (C) 2011 NXP Semiconductors
+ *
+ * Copyright (C) 2014 Joachim Eastwood <manabian@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  *
- *  You should have received a copy of the GNU General Public License along
- *  with this program; if not, write to the Free Software Foundation, Inc.,
- *  675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#include <linux/clk.h>
+#include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/init.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/platform_device.h>
-#include <linux/spinlock.h>
 #include <linux/rtc.h>
 #include <linux/slab.h>
-#include <linux/io.h>
-#include <linux/clk.h>
 
 /*
  * Clock and Power control register offsets
@@ -40,7 +41,8 @@
 #define LPC24XX_DOY			0x34
 #define LPC24XX_MONTH			0x38
 #define LPC24XX_YEAR			0x3C
-#define LPC24XX_CISS			0x40
+#define LPC24XX_CISS			0x40 /* LPC24xx only */
+#define LPC18XX_CALIBRATION		0x40 /* LPC18xx only */
 #define LPC24XX_ALSEC			0x60
 #define LPC24XX_ALMIN			0x64
 #define LPC24XX_ALHOUR			0x68
@@ -49,16 +51,17 @@
 #define LPC24XX_ALDOY			0x74
 #define LPC24XX_ALMON			0x78
 #define LPC24XX_ALYEAR			0x7C
-#define LPC24XX_PREINT			0x80
-#define LPC24XX_PREFRAC			0x84
+#define LPC24XX_PREINT			0x80 /* LPC24xx only */
+#define LPC24XX_PREFRAC			0x84 /* LPC24xx only */
 
 #define LPC24XX_RTCCIF			(1 << 0)
 #define LPC24XX_RTCALF			(1 << 1)
-#define LPC24XX_RTSSF			(1 << 2)
+#define LPC24XX_RTSSF			(1 << 2) /* LPC24xx only */
 
 #define LPC24XX_CLKEN			(1 << 0)
 #define LPC24XX_CTCRST			(1 << 1)
-#define LPC24XX_CLKSRC			(1 << 4)
+#define LPC24XX_CLKSRC			(1 << 4) /* LPC24xx only */
+#define LPC18XX_CCALEN			(1 << 4) /* LPC18xx only */
 
 #define LPC24XX_IMSEC			(1 << 0)
 #define LPC24XX_IMMIN			(1 << 1)
@@ -85,18 +88,23 @@
 #define rtc_writel(dev, reg, val) \
 	__raw_writel((val), (dev)->rtc_base + (reg))
 
+/* lpc2k-rtc feature flags */
+#define HAVE_SUBSECOND		BIT(0)
+#define HAVE_CALIBRATION	BIT(1)
+#define HAVE_PRESCALER		BIT(2)
+
 struct lpc24xx_rtc {
 	void __iomem *rtc_base;
-	int irq;
-	unsigned char alarm_enabled;
 	struct rtc_device *rtc;
-	struct clk *clk;
+	struct clk *clk_rtc;
+	struct clk *clk_reg;
+	u32 features;
 };
 
 static int lpc24xx_rtc_read_time(struct device *dev, struct rtc_time *tm)
 {
-	unsigned long ct0, ct1, ct2;
 	struct lpc24xx_rtc *rtc = dev_get_drvdata(dev);
+	unsigned long ct0, ct1, ct2;
 
 	ct0 = rtc_readl(rtc, LPC24XX_CTIME0);
 	ct1 = rtc_readl(rtc, LPC24XX_CTIME1);
@@ -116,8 +124,8 @@ static int lpc24xx_rtc_read_time(struct device *dev, struct rtc_time *tm)
 
 static int lpc24xx_rtc_set_time(struct device *dev, struct rtc_time *tm)
 {
-	unsigned long rtc_ctrl;
 	struct lpc24xx_rtc *rtc = dev_get_drvdata(dev);
+	unsigned long rtc_ctrl;
 
 	/* Disable RTC during update */
 	rtc_ctrl = rtc_readl(rtc, LPC24XX_CCR);
@@ -137,8 +145,7 @@ static int lpc24xx_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	return 0;
 }
 
-static int lpc24xx_rtc_read_alarm(struct device *dev,
-	struct rtc_wkalrm *wkalrm)
+static int lpc24xx_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *wkalrm)
 {
 	struct lpc24xx_rtc *rtc = dev_get_drvdata(dev);
 	struct rtc_time *tm = &wkalrm->time;
@@ -158,8 +165,7 @@ static int lpc24xx_rtc_read_alarm(struct device *dev,
 	return rtc_valid_tm(&wkalrm->time);
 }
 
-static int lpc24xx_rtc_set_alarm(struct device *dev,
-	struct rtc_wkalrm *wkalrm)
+static int lpc24xx_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *wkalrm)
 {
 	struct lpc24xx_rtc *rtc = dev_get_drvdata(dev);
 	struct rtc_time *tm = &wkalrm->time;
@@ -231,101 +237,117 @@ static const struct rtc_class_ops lpc24xx_rtc_ops = {
 	.alarm_irq_enable	= lpc24xx_rtc_alarm_irq_enable,
 };
 
-static int __devinit lpc24xx_rtc_probe(struct platform_device *pdev)
+
+static const struct of_device_id lpc24xx_rtc_match[] = {
+	{ .compatible = "nxp,lpc1788-rtc", .data = (void *) HAVE_CALIBRATION},
+	{ }
+};
+
+static int lpc24xx_rtc_probe(struct platform_device *pdev)
 {
-	struct resource *res;
+	const struct of_device_id *match;
 	struct lpc24xx_rtc *rtc;
-	resource_size_t size;
-	int rtcirq;
+	struct resource *res;
+	u32 ccr = 0;
+	int ret;
+	int irq;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "Can't get memory resource\n");
-		return -ENOENT;
-	}
-
-	rtcirq = platform_get_irq(pdev, 0);
-	if (rtcirq < 0 || rtcirq >= NR_IRQS) {
-		dev_warn(&pdev->dev, "Can't get interrupt resource\n");
-		rtcirq = -1;
+	match = of_match_device(lpc24xx_rtc_match, &pdev->dev);
+	if (!match) {
+		dev_err(&pdev->dev, "Error: No device match found\n");
+		return -ENODEV;
 	}
 
 	rtc = devm_kzalloc(&pdev->dev, sizeof(*rtc), GFP_KERNEL);
-	if (unlikely(!rtc)) {
-		dev_err(&pdev->dev, "Can't allocate memory\n");
+	if (!rtc)
 		return -ENOMEM;
-	}
-	rtc->irq = rtcirq;
 
-	size = resource_size(res);
+	rtc->features = (u32) match->data;
 
-	if (!devm_request_mem_region(&pdev->dev, res->start, size,
-				     pdev->name)) {
-		dev_err(&pdev->dev, "RTC registers are not free\n");
-		return -EBUSY;
-	}
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	rtc->rtc_base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(rtc->rtc_base))
+		return PTR_ERR(rtc->rtc_base);
 
-	rtc->rtc_base = devm_ioremap(&pdev->dev, res->start, size);
-	if (!rtc->rtc_base) {
-		dev_err(&pdev->dev, "Can't map memory\n");
-		return -ENOMEM;
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0) {
+		dev_warn(&pdev->dev, "Can't get interrupt resource\n");
+		return irq;
 	}
 
-	rtc->clk = clk_get(&pdev->dev, NULL);
-	if (IS_ERR(rtc->clk)) {
-		dev_err(&pdev->dev, "error getting clock\n");
-		return IS_ERR(rtc->clk);
+	rtc->clk_rtc = devm_clk_get(&pdev->dev, "rtc");
+	if (IS_ERR(rtc->clk_rtc)) {
+		dev_err(&pdev->dev, "Error getting rtc clock\n");
+		return PTR_ERR(rtc->clk_rtc);
 	}
-	clk_enable(rtc->clk);
+
+	rtc->clk_reg = devm_clk_get(&pdev->dev, "reg");
+	if (IS_ERR(rtc->clk_reg)) {
+		dev_err(&pdev->dev, "Error getting reg clock\n");
+		return PTR_ERR(rtc->clk_reg);
+	}
+
+	ret = clk_prepare_enable(rtc->clk_rtc);
+	if (ret) {
+		dev_err(&pdev->dev, "Unable to enable rtc clock.\n");
+		return ret;
+	}
+
+	ret = clk_prepare_enable(rtc->clk_reg);
+	if (ret) {
+		dev_err(&pdev->dev, "Unable to enable reg clock.\n");
+		goto disable_rtc_clk;
+	}
 
 	platform_set_drvdata(pdev, rtc);
-
-	rtc->rtc = rtc_device_register(RTC_NAME, &pdev->dev, &lpc24xx_rtc_ops,
-		THIS_MODULE);
-	if (IS_ERR(rtc->rtc)) {
-		dev_err(&pdev->dev, "Can't get RTC\n");
-		platform_set_drvdata(pdev, NULL);
-		rtc_writel(rtc, LPC24XX_CCR, 0);
-		clk_disable(rtc->clk);
-		clk_put(rtc->clk);
-
-		return PTR_ERR(rtc->rtc);
-	}
 
 	/* Clear the counter increment state */
 	rtc_writel(rtc, LPC24XX_ILR, LPC24XX_RTCCIF);
 
-	if (rtc->irq >= 0) {
-		if (devm_request_irq(&pdev->dev, rtc->irq,
-				     lpc24xx_rtc_interrupt,
-				     IRQF_DISABLED, pdev->name, rtc) < 0) {
-			dev_warn(&pdev->dev, "Can't request interrupt.\n");
-			rtc->irq = -1;
-		} else {
-			device_init_wakeup(&pdev->dev, 1);
-		}
+	if (rtc->features & HAVE_PRESCALER) {
+		/* Clock source is 32K oscillator */
+		ccr = LPC24XX_CLKSRC;
+		rtc_writel(rtc, LPC24XX_CCR, ccr);
+
+		/* Set pre-scaler to divider by 1 */
+		rtc_writel(rtc, LPC24XX_PREINT, 0);
+		rtc_writel(rtc, LPC24XX_PREFRAC, 0);
 	}
 
-	/* Clock source is 32K oscillator */
-	rtc_writel(rtc, LPC24XX_CCR, LPC24XX_CLKSRC);
-
-	/* Set pre-scaler to divider by 1 */
-	rtc_writel(rtc, LPC24XX_PREINT, 0);
-	rtc_writel(rtc, LPC24XX_PREFRAC, 0);
-
-	/* Disable sub-second interrupt */
-	rtc_writel(rtc, LPC24XX_CISS, 0);
+	if (rtc->features & HAVE_SUBSECOND) {
+		/* Disable sub-second interrupt */
+		rtc_writel(rtc, LPC24XX_CISS, 0);
+	}
 
 	/* Only 1-second interrupt will generate interrupt */
 	rtc_writel(rtc, LPC24XX_CIIR, LPC24XX_IMSEC);
 
 	/* Enable RTC count */
-	rtc_writel(rtc, LPC24XX_CCR, LPC24XX_CLKSRC | LPC24XX_CLKEN);
+	rtc_writel(rtc, LPC24XX_CCR, ccr | LPC24XX_CLKEN);
+
+	ret = devm_request_irq(&pdev->dev, irq, lpc24xx_rtc_interrupt, 0, pdev->name, rtc);
+	if (ret < 0) {
+		dev_warn(&pdev->dev, "Can't request interrupt.\n");
+		goto disable_clks;
+	}
+
+	rtc->rtc = devm_rtc_device_register(&pdev->dev, RTC_NAME, &lpc24xx_rtc_ops, THIS_MODULE);
+	if (IS_ERR(rtc->rtc)) {
+		dev_err(&pdev->dev, "Can't register rtc device\n");
+		ret = PTR_ERR(rtc->rtc);
+		goto disable_clks;
+	}
 
 	return 0;
+
+disable_clks:
+	clk_disable_unprepare(rtc->clk_reg);
+disable_rtc_clk:
+	clk_disable_unprepare(rtc->clk_rtc);
+	return ret;
 }
 
-static int __devexit lpc24xx_rtc_remove(struct platform_device *pdev)
+static int lpc24xx_rtc_remove(struct platform_device *pdev)
 {
 	struct lpc24xx_rtc *rtc = platform_get_drvdata(pdev);
 
@@ -336,80 +358,21 @@ static int __devexit lpc24xx_rtc_remove(struct platform_device *pdev)
 	rtc_writel(rtc, LPC24XX_AMR, 0xFF);
 	rtc_writel(rtc, LPC24XX_CCR, 0);
 
-	if (rtc->irq >= 0)
-		device_init_wakeup(&pdev->dev, 0);
-
-	clk_disable(rtc->clk);
-	clk_put(rtc->clk);
-
-	platform_set_drvdata(pdev, NULL);
-	rtc_device_unregister(rtc->rtc);
+	clk_disable_unprepare(rtc->clk_rtc);
+	clk_disable_unprepare(rtc->clk_reg);
 
 	return 0;
 }
-
-#ifdef CONFIG_PM
-static int lpc24xx_rtc_suspend(struct device *dev)
-{
-	struct platform_device *pdev = to_platform_device(dev);
-	struct lpc24xx_rtc *rtc = platform_get_drvdata(pdev);
-
-	if (rtc->irq >= 0) {
-		if (device_may_wakeup(&pdev->dev))
-			enable_irq_wake(rtc->irq);
-		else
-			disable_irq_wake(rtc->irq);
-	}
-
-	clk_disable(rtc->clk);
-
-	return 0;
-}
-
-static int lpc24xx_rtc_resume(struct device *dev)
-{
-	struct platform_device *pdev = to_platform_device(dev);
-	struct lpc24xx_rtc *rtc = platform_get_drvdata(pdev);
-
-	clk_enable(rtc->clk);
-
-	if (rtc->irq >= 0 && device_may_wakeup(&pdev->dev))
-		disable_irq_wake(rtc->irq);
-
-	return 0;
-}
-
-static const struct dev_pm_ops lpc24xx_rtc_pm_ops = {
-	.suspend = lpc24xx_rtc_suspend,
-	.resume = lpc24xx_rtc_resume,
-};
-
-#define LPC24XX_RTC_PM_OPS (&lpc24xx_rtc_pm_ops)
-#else
-#define LPC24XX_RTC_PM_OPS NULL
-#endif
 
 static struct platform_driver lpc24xx_rtc_driver = {
-	.probe		= lpc24xx_rtc_probe,
-	.remove		= __devexit_p(lpc24xx_rtc_remove),
-	.driver = {
-		.name	= RTC_NAME,
-		.owner	= THIS_MODULE,
-		.pm	= LPC24XX_RTC_PM_OPS
+	.probe	= lpc24xx_rtc_probe,
+	.remove	= lpc24xx_rtc_remove,
+	.driver	= {
+		.name = RTC_NAME,
+		.of_match_table	= lpc24xx_rtc_match,
 	},
 };
-
-static int __init lpc24xx_rtc_init(void)
-{
-	return platform_driver_register(&lpc24xx_rtc_driver);
-}
-module_init(lpc24xx_rtc_init);
-
-static void __exit lpc24xx_rtc_exit(void)
-{
-	platform_driver_unregister(&lpc24xx_rtc_driver);
-}
-module_exit(lpc24xx_rtc_exit);
+module_platform_driver(lpc24xx_rtc_driver);
 
 MODULE_AUTHOR("Kevin Wells <wellsk40@gmail.com");
 MODULE_DESCRIPTION("RTC driver for the LPC24xx SoC");

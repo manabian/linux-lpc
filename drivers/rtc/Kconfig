@@ -1310,7 +1310,7 @@ config RTC_DRV_JZ4740
 	  will be called rtc-jz4740.
 
 config RTC_DRV_LPC24XX
-	depends on ARCH_LPC2K
+	depends on OF && (ARCH_LPC18XX || TEST_COMPILE)
 	tristate "NXP LPC2K RTC"
 	help
 	  This enables support for the NXP RTC in the LPC2K
