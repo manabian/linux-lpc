@@ -13,23 +13,18 @@
  * 2 of the License, or (at your option) any later version.
  */
 
-#include <linux/module.h>
-#include <linux/moduleparam.h>
-#include <linux/types.h>
-#include <linux/kernel.h>
-#include <linux/fs.h>
-#include <linux/miscdevice.h>
-#include <linux/watchdog.h>
-#include <linux/init.h>
 #include <linux/bitops.h>
-#include <linux/ioport.h>
-#include <linux/device.h>
-#include <linux/platform_device.h>
 #include <linux/clk.h>
-#include <linux/spinlock.h>
-#include <linux/uaccess.h>
+#include <linux/device.h>
+#include <linux/fs.h>
 #include <linux/io.h>
+#include <linux/kernel.h>
+#include <linux/miscdevice.h>
+#include <linux/module.h>
+#include <linux/platform_device.h>
 #include <linux/slab.h>
+#include <linux/uaccess.h>
+#include <linux/watchdog.h>
 
 #define MODULE_NAME "lpc2k-wdt"
 
@@ -62,9 +57,7 @@ static struct platform_device *lpc2k_wdt_dev;
 
 struct lpc2k_wdt_dev {
 	void __iomem		*base;
-	struct device		*dev;
 	unsigned long		num_users;
-	struct resource		*mem, *res;
 	struct miscdevice	miscdev;
 	struct clk		*clk;
 	long			heartbeat;
@@ -122,8 +115,7 @@ static void lpc2k_wdt_enable(struct lpc2k_wdt_dev *wdtdev)
 	lpc2k_wdt_feed(wdtdev->base);
 }
 
-static ssize_t lpc2k_wdt_write(struct file *file, const char *data,
-	size_t len, loff_t *ppos)
+static ssize_t lpc2k_wdt_write(struct file *file, const char *data, size_t len, loff_t *ppos)
 {
 	struct lpc2k_wdt_dev *wdtdev = platform_get_drvdata(lpc2k_wdt_dev);
 
@@ -138,8 +130,7 @@ static const struct watchdog_info lpc2k_ident = {
 	.identity = "LPC2K Watchdog",
 };
 
-static long lpc2k_wdt_ioctl(struct file *file, unsigned int cmd,
-	unsigned long arg)
+static long lpc2k_wdt_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	int ret = -ENOTTY;
 	int boot_status, time;
@@ -195,7 +186,7 @@ static int lpc2k_wdt_open(struct inode *inode, struct file *file)
 	if (test_and_set_bit(1, &wdtdev->num_users))
 		return -EBUSY;
 
-	ret = clk_enable(wdtdev->clk);
+	ret = clk_prepare_enable(wdtdev->clk);
 	if (ret) {
 		clear_bit(1, &wdtdev->num_users);
 		return ret;
@@ -222,52 +213,31 @@ static const struct file_operations lpc2k_wdt_fops = {
 	.release = lpc2k_wdt_release,
 };
 
-static int __devinit lpc2k_wdt_probe(struct platform_device *pdev)
+static int lpc2k_wdt_probe(struct platform_device *pdev)
 {
-	int ret = 0;
 	struct lpc2k_wdt_dev *wdtdev;
-	struct resource *mem, *res;
+	struct resource *res;
+	int ret;
+
+	wdtdev = devm_kzalloc(&pdev->dev, sizeof(*wdtdev), GFP_KERNEL);
+	if (!wdtdev)
+		return -ENOMEM;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (res == NULL) {
-		printk(KERN_ERR MODULE_NAME
-			"failed to get memory region resouce\n");
-		return -ENOENT;
-	}
+	wdtdev->base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(wdtdev->base))
+		return PTR_ERR(wdtdev->base);
 
-	mem = request_mem_region(res->start, resource_size(res), pdev->name);
-	if (mem == NULL) {
-		printk(KERN_ERR MODULE_NAME "failed to get memory region\n");
-		return -EBUSY;
-	}
-
-	/* we don't need the IRQ for this simple driver */
-
-	wdtdev = kzalloc(sizeof(struct lpc2k_wdt_dev), GFP_KERNEL);
-	if (!wdtdev) {
-		ret = -ENOMEM;
-		goto err_kzalloc;
-	}
-
-	wdtdev->dev = &pdev->dev;
-	wdtdev->mem = mem;
-	wdtdev->res = res;
 	platform_set_drvdata(pdev, wdtdev);
-
-	wdtdev->base = ioremap(res->start, resource_size(res));
-	if (!wdtdev->base) {
-		ret = -ENOMEM;
-		goto err_ioremap;
-	}
 
 	/*
 	 * Since this peripheral is always clocked, we'll get the clock
 	 * here and get the rate on open
 	 */
-	wdtdev->clk = clk_get(&pdev->dev, NULL);
-	if (!wdtdev->clk) {
-		ret = -ENOMEM;
-		goto err_clk;
+	wdtdev->clk = devm_clk_get(&pdev->dev, NULL);
+	if (IS_ERR(wdtdev->clk)) {
+		dev_err(&pdev->dev, "Error getting clock\n");
+		return PTR_ERR(wdtdev->clk);
 	}
 
 	wdtdev->miscdev.parent = &pdev->dev;
@@ -278,9 +248,11 @@ static int __devinit lpc2k_wdt_probe(struct platform_device *pdev)
 	/* Default reset timeout */
 	wdtdev->heartbeat = MAX_HEARTBEAT;
 
+	lpc2k_wdt_dev = pdev;
+
 	ret = misc_register(&wdtdev->miscdev);
 	if (ret)
-		goto err_miscreg;
+		return ret;
 
 	/*
 	 * Leave WDT disabled until opened. Once opened, the WDT must
@@ -291,65 +263,32 @@ static int __devinit lpc2k_wdt_probe(struct platform_device *pdev)
 
 	lpc2k_wdt_show_warning();
 
-	lpc2k_wdt_dev = pdev;
-
 	return 0;
-
-err_miscreg:
-	clk_put(wdtdev->clk);
-err_clk:
-	iounmap(wdtdev->base);
-err_ioremap:
-	platform_set_drvdata(pdev, NULL);
-	kfree(wdtdev);
-err_kzalloc:
-	release_mem_region(res->start, resource_size(res));
-
-	return ret;
 }
 
-static int __devexit lpc2k_wdt_remove(struct platform_device *pdev)
+static int lpc2k_wdt_remove(struct platform_device *pdev)
 {
 	struct lpc2k_wdt_dev *wdtdev = platform_get_drvdata(pdev);
 
 	misc_deregister(&wdtdev->miscdev);
 
 	if (test_bit(1, &wdtdev->num_users)) {
-		clk_disable(wdtdev->clk);
+		clk_disable_unprepare(wdtdev->clk);
 		lpc2k_wdt_show_warning();
 	}
-
-	clk_put(wdtdev->clk);
-
-	iounmap(wdtdev->base);
-	platform_set_drvdata(pdev, NULL);
-	kfree(wdtdev);
-	release_mem_region(wdtdev->res->start, resource_size(wdtdev->res));
 
 	return 0;
 }
 
 static struct platform_driver lpc2k_wdt_driver = {
+	.probe	= lpc2k_wdt_probe,
+	.remove	= lpc2k_wdt_remove,
 	.driver = {
-		.name = MODULE_NAME,
-		.owner	= THIS_MODULE,
+		.name	= MODULE_NAME,
 	},
-	.probe = lpc2k_wdt_probe,
-	.remove = __devexit_p(lpc2k_wdt_remove),
+
 };
-
-static int __init lpc2k_wdt_init(void)
-{
-	return platform_driver_register(&lpc2k_wdt_driver);
-}
-
-static void __exit lpc2k_wdt_exit(void)
-{
-	platform_driver_unregister(&lpc2k_wdt_driver);
-}
-
-module_init(lpc2k_wdt_init);
-module_exit(lpc2k_wdt_exit);
+module_platform_driver(lpc2k_wdt_driver);
 
 MODULE_AUTHOR("Kevin Wells <kevin.wells@nxp.com>");
 MODULE_DESCRIPTION("LPC2K Watchdog Driver");
