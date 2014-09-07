@@ -26,6 +26,16 @@ config STMMAC_PLATFORM
 
 	  If unsure, say N.
 
+config DWMAC_LPC18XX
+	bool "NXP LPC18XX/43XX dwmac support"
+	depends on STMMAC_PLATFORM && ARCH_LPC18XX
+	---help---
+	  Support for NXP LPC18XX/43XX Ethernet controller.
+
+	  This selects NXP LPC18XX/43XX glue layer support for the
+	  stmmac device driver. This driver is used for Ethernet
+	  support on NXP LPC1800 and LPC4300 series devices.
+
 config DWMAC_MESON
 	bool "Amlogic Meson dwmac support"
 	depends on STMMAC_PLATFORM && ARCH_MESON
