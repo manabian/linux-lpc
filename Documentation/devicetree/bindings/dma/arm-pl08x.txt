@@ -1,0 +1,182 @@
+* ARM PrimeCells PL080 and PL081 and derivatives DMA controller
+
+Required properties:
+- compatible: "arm,pl080", "arm,pl081", "arm,primecell"
+- reg: Address range of the PL08x registers
+- interrupt: The PL08x interrupt number
+- clocks: The clock running the IP core clock
+- clock-names: A list with one element with the name of the core clock
+- lli-bus-interface-ahb1: if AHB master 1 is eligible for fetching LLIs
+- lli-bus-interface-ahb2: if AHB master 2 is eligible for fetching LLIs
+- mem-bus-interface-ahb1: if AHB master 1 is eligible for fetching memory contents
+- mem-bus-interface-ahb2: if AHB master 2 is eligible for fetching memory contents
+- #dma-cells: must be <3>
+
+Optional properties:
+- memcpy-burst-size: the size of the bursts for memcpy: 1, 4, 8, 16, 32
+  64, 128 or 256 bytes are legal values
+- memcpy-bus-width: the bus width used for memcpy: 8, 16 or 32 are legal
+  values
+
+Optional sub-nodes:
+The slave transfer channels are assigned in consecutive order and
+identified by one child node per channel, assuming a fixed-signal
+per channel assignment and each with the following properties:
+
+Required properties:
+- signal: the name of the on-chip signal line handled by this channel
+- bus-interface-ahb1 or bus-interface-ahb2: tells the driver which
+  bus interface(s) that is eligible for this specific channel. At least
+  one of the interfaces must be specified, it is perfectly legal to
+  specify both if the hardware supports using either interface.
+
+Clients
+Required properties:
+- dmas: Comma separated list of dma channel requests
+- dma-names: Names of the aforementioned requested channels
+
+Example:
+
+dmac0: dma-controller@10130000 {
+	compatible = "arm,pl080", "arm,primecell";
+	reg = <0x10130000 0x1000>;
+	interrupt-parent = <&vica>;
+	interrupts = <15>;
+	clocks = <&hclkdma0>;
+	clock-names = "apb_pclk";
+	lli-bus-interface-ahb1;
+	lli-bus-interface-ahb2;
+	mem-bus-interface-ahb2;
+	memcpy-burst-size = <256>;
+	memcpy-bus-width = <32>;
+	#dma-cells = <1>;
+	/* Assignments for the 32 channels */
+	saa0@dmac0 {
+		signal = "saa0";
+		bus-interface-ahb1;
+	};
+	saa1@dmac0 {
+		signal = "saa1";
+		bus-interface-ahb1;
+	};
+	saa2@dmac0 {
+		signal = "saa2";
+		bus-interface-ahb1;
+	};
+	saa3@dmac0 {
+		signal = "saa3";
+		bus-interface-ahb1;
+	};
+	saa4@dmac0 {
+		signal = "saa4";
+		bus-interface-ahb1;
+	};
+	saa5@dmac0 {
+		signal = "saa5";
+		bus-interface-ahb1;
+	};
+	saa6@dmac0 {
+		signal = "saa6";
+		bus-interface-ahb1;
+	};
+	saa7@dmac0 {
+		signal = "saa7";
+		bus-interface-ahb1;
+	};
+	unused@dmac0 {
+		signal = "unused";
+		bus-interface-ahb1;
+	};
+	fir@dmac0 {
+		signal = "firdatxrx";
+		bus-interface-ahb1;
+	};
+	msp0rx@dmac0 {
+		signal = "msp0rx";
+		bus-interface-ahb1;
+	};
+	msp0tx@dmac0 {
+		signal = "msp0tx";
+		bus-interface-ahb1;
+	};
+	ssprx@dmac0 {
+		signal = "ssprx";
+		bus-interface-ahb1;
+	};
+	ssptx@dmac0 {
+		signal = "ssptx";
+		bus-interface-ahb1;
+	};
+	uart0rx@dmac0 {
+		signal = "uart0rx";
+		bus-interface-ahb1;
+	};
+	uart0tx@dmac0 {
+		signal = "uart0tx";
+		bus-interface-ahb1;
+	};
+	hsirxch0@dmac0 {
+		signal = "hsirxch0";
+		bus-interface-ahb1;
+	};
+	hsirxch1@dmac0 {
+		signal = "hsirxch1";
+		bus-interface-ahb1;
+	};
+	hsirxch2@dmac0 {
+		signal = "hsirxch2";
+		bus-interface-ahb1;
+	};
+	hsirxch3@dmac0 {
+		signal = "hsirxch3";
+		bus-interface-ahb1;
+	};
+	hsirxch4@dmac0 {
+		signal = "hsirxch4";
+		bus-interface-ahb1;
+	};
+	hsirxch5@dmac0 {
+		signal = "hsirxch5";
+		bus-interface-ahb1;
+	};
+	hsirxch6@dmac0 {
+		signal = "hsirxch6";
+		bus-interface-ahb1;
+	};
+	hsirxch7@dmac0 {
+		signal = "hsirxch7";
+		bus-interface-ahb1;
+	};
+	hsitxch0@dmac0 {
+		signal = "hsitxch0";
+		bus-interface-ahb1;
+	};
+	hsitxch1@dmac0 {
+		signal = "hsitxch1";
+		bus-interface-ahb1;
+	};
+	hsitxch2@dmac0 {
+		signal = "hsitxch2";
+		bus-interface-ahb1;
+	};
+	hsitxch3@dmac0 {
+		signal = "hsitxch3";
+		bus-interface-ahb1;
+	};
+	hsitxch4@dmac0 {
+		signal = "hsitxch4";
+		bus-interface-ahb1;
+	};
+	hsitxch5@dmac0 {
+		signal = "hsitxch5";
+		bus-interface-ahb1;
+	};
+	hsitxch6@dmac0 {
+		signal = "hsitxch6";
+		bus-interface-ahb1;
+	};
+	hsitxch7@dmac0 {
+		signal = "hsitxch7";
+		bus-interface-ahb1;
+	};
+};
