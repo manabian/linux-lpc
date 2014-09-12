@@ -112,7 +112,8 @@ void usb_gen_phy_shutdown(struct usb_phy *phy)
 }
 EXPORT_SYMBOL_GPL(usb_gen_phy_shutdown);
 
-static int nop_set_peripheral(struct usb_otg *otg, struct usb_gadget *gadget)
+int usb_gen_phy_otg_set_peripheral(struct usb_otg *otg,
+				   struct usb_gadget *gadget)
 {
 	if (!otg)
 		return -ENODEV;
@@ -126,8 +127,9 @@ static int nop_set_peripheral(struct usb_otg *otg, struct usb_gadget *gadget)
 	otg->phy->state = OTG_STATE_B_IDLE;
 	return 0;
 }
+EXPORT_SYMBOL_GPL(usb_gen_phy_otg_set_peripheral);
 
-static int nop_set_host(struct usb_otg *otg, struct usb_bus *host)
+int usb_gen_phy_otg_set_host(struct usb_otg *otg, struct usb_bus *host)
 {
 	if (!otg)
 		return -ENODEV;
@@ -140,6 +142,7 @@ static int nop_set_host(struct usb_otg *otg, struct usb_bus *host)
 	otg->host = host;
 	return 0;
 }
+EXPORT_SYMBOL_GPL(usb_gen_phy_otg_set_host);
 
 int usb_phy_gen_create_phy(struct device *dev, struct usb_phy_generic *nop,
 		struct usb_phy_generic_platform_data *pdata)
@@ -229,8 +232,8 @@ int usb_phy_gen_create_phy(struct device *dev, struct usb_phy_generic *nop,
 	nop->phy.type		= type;
 
 	nop->phy.otg->phy		= &nop->phy;
-	nop->phy.otg->set_host		= nop_set_host;
-	nop->phy.otg->set_peripheral	= nop_set_peripheral;
+	nop->phy.otg->set_host		= usb_gen_phy_otg_set_host;
+	nop->phy.otg->set_peripheral	= usb_gen_phy_otg_set_peripheral;
 
 	return 0;
 }
