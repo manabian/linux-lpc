@@ -41,6 +41,15 @@ config ISP1301_OMAP
 	  This driver can also be built as a module.  If so, the module
 	  will be called phy-isp1301-omap.
 
+config LPC18XX_USB_PHY
+	tristate "LPC18xx/43xx USB PHY Driver"
+	depends on ARCH_LPC18XX || COMPILE_TEST
+	select NOP_USB_XCEIV
+	help
+	  Enable this to support NXP LPC18xx/43xx USB phy. This driver
+	  provides interface to setup and enable USB PHY integrated
+	  on device.
+
 config KEYSTONE_USB_PHY
 	tristate "Keystone USB PHY Driver"
 	depends on ARCH_KEYSTONE || COMPILE_TEST

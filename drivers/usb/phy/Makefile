@@ -13,6 +13,7 @@ obj-$(CONFIG_NOP_USB_XCEIV)		+= phy-generic.o
 obj-$(CONFIG_TAHVO_USB)			+= phy-tahvo.o
 obj-$(CONFIG_AM335X_CONTROL_USB)	+= phy-am335x-control.o
 obj-$(CONFIG_AM335X_PHY_USB)		+= phy-am335x.o
+obj-$(CONFIG_LPC18XX_USB_PHY)		+= phy-lpc18xx.o
 obj-$(CONFIG_OMAP_OTG)			+= phy-omap-otg.o
 obj-$(CONFIG_SAMSUNG_USBPHY)		+= phy-samsung-usb.o
 obj-$(CONFIG_TWL6030_USB)		+= phy-twl6030-usb.o
