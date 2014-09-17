@@ -75,6 +75,11 @@ if [ $(words $(UIMAGE_LOADADDR)) -ne 1 ]; then \
 	false; \
 fi
 
+ifeq ($(CONFIG_CPU_V7M),y)
+  # Set bit 0 to 1 so that Thumb mode is used
+  UIMAGE_ENTRYADDR=$(shell echo $(UIMAGE_LOADADDR) | sed -e "s/.$$/1/")
+endif
+
 $(obj)/uImage:	$(obj)/zImage FORCE
 	@$(check_for_multiple_loadaddr)
 	$(call if_changed,uimage)
