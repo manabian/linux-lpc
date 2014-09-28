@@ -801,8 +801,9 @@ call_cache_fn:	adr	r12, proc_types
 #ifdef CONFIG_CPU_CP15
 		mrc	p15, 0, r9, c0, c0	@ get processor ID
 #elif defined(CONFIG_CPU_V7M)
-		ldr	r9, =BASEADDR_V7M_SCB
-		ldr	r9, [r9, V7M_SCB_CPUID]
+@		ldr	r9, =BASEADDR_V7M_SCB
+@		ldr	r9, [r9, V7M_SCB_CPUID]
+		mov	pc, lr
 #else
 		ldr	r9, =CONFIG_PROCESSOR_ID
 #endif
@@ -958,13 +959,11 @@ proc_types:
 		W(b)	__armv4_mmu_cache_off
 		W(b)	__armv6_mmu_cache_flush
 
-#ifndef CONFIG_CPU_V7M
 		.word	0x000f0000		@ new CPU Id
 		.word	0x000f0000
 		W(b)	__armv7_mmu_cache_on
 		W(b)	__armv7_mmu_cache_off
 		W(b)	__armv7_mmu_cache_flush
-#endif
 
 		.word	0			@ unrecognised type
 		.word	0
