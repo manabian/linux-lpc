@@ -23,6 +23,7 @@
 #include "8250/8250.h"
 
 struct of_serial_info {
+	struct clk *clk_reg;
 	struct clk *clk;
 	int type;
 	int line;
@@ -85,6 +86,11 @@ static int of_platform_serial_setup(struct platform_device *ofdev,
 		dev_warn(&ofdev->dev, "invalid address\n");
 		goto out;
 	}
+
+	/* Get optional clock for register interface */
+	info->clk_reg = devm_clk_get(&ofdev->dev, "reg");
+	if (!IS_ERR(info->clk_reg))
+		clk_prepare_enable(info->clk_reg);
 
 	spin_lock_init(&port->lock);
 	port->mapbase = resource.start;
@@ -236,6 +242,10 @@ static int of_platform_serial_remove(struct platform_device *ofdev)
 
 	if (info->clk)
 		clk_disable_unprepare(info->clk);
+
+	if (!IS_ERR(info->clk_reg))
+		clk_disable_unprepare(info->clk_reg);
+
 	kfree(info);
 	return 0;
 }

@@ -22,6 +22,9 @@ Required properties:
 	 or
   clocks phandle to refer to the clk used as per Documentation/devicetree
   /bindings/clock/clock-bindings.txt
+  clocks can optionally contain a phandle for register interface clock. This
+  optional clock should come after the main clock and the node should also
+  then contain a 'clock-names' property where the reg clock is named 'reg'.
 
 Optional properties:
 - current-speed : the current active speed of the UART.
