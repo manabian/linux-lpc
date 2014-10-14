@@ -14,6 +14,7 @@
 #include <linux/kernel.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
+#include <linux/spinlock.h>
 
 #include <dt-bindings/clock/lpc18xx-cgu.h>
 
@@ -188,6 +189,8 @@ static struct clk_mux  clk_base_muxes[BASE_CLK_MAX] = {
 	[BASE_CGU_OUT1_CLK]	= {CLK_MUX_TABLE(base_all_srcs_ids)},
 };
 
+static DEFINE_SPINLOCK(clk_cgu_lock);
+
 struct clk_lpc_pll {
 	struct		clk_hw hw;
 	void __iomem	*reg;
@@ -296,10 +299,13 @@ static unsigned long clk_lpc_pll0_usb_recalc_rate(struct clk_hw *hw,
 {
 	struct clk_lpc_pll *pll = to_lpc_pll(hw);
 	u32 ctrl, mdiv, msel, npdiv;
+	unsigned long flags = 0;
 
+	spin_lock_irqsave(pll->lock, flags);
 	ctrl = clk_readl(pll->reg + LPC18XX_CGU_PLL0USB_CTRL);
 	mdiv = clk_readl(pll->reg + LPC18XX_CGU_PLL0USB_MDIV);
 	npdiv = clk_readl(pll->reg + LPC18XX_CGU_PLL0USB_NP_DIV);
+	spin_unlock_irqrestore(pll->lock, flags);
 
 	if (ctrl & LPC18XX_PLL0_CTRL_BYPASS)
 		return parent_rate;
@@ -341,8 +347,9 @@ static int clk_lpc_pll0_usb_set_rate(struct clk_hw *hw, unsigned long rate,
 				     unsigned long parent_rate)
 {
 	struct clk_lpc_pll *pll = to_lpc_pll(hw);
+	unsigned long flags = 0;
 	u32 ctrl, stat, m;
-	int retry = 3;
+	int ret, retry = 3;
 
 	if (parent_rate < rate) {
 		pr_warn("%s: pll dividers not supported\n", __func__);
@@ -359,6 +366,8 @@ static int clk_lpc_pll0_usb_set_rate(struct clk_hw *hw, unsigned long rate,
 	m |= lpc18xx_pll0_msel2selp(m) << LPC18XX_PLL0_MDIV_SELP_SHIFT;
 	m |= lpc18xx_pll0_msel2seli(m) << LPC18XX_PLL0_MDIV_SELI_SHIFT;
 
+	spin_lock_irqsave(pll->lock, flags);
+
 	/* Power down PLL, disable clk output and dividers */
 	ctrl = clk_readl(pll->reg + LPC18XX_CGU_PLL0USB_CTRL);
 	ctrl |= LPC18XX_PLL0_CTRL_PD;
@@ -371,6 +380,7 @@ static int clk_lpc_pll0_usb_set_rate(struct clk_hw *hw, unsigned long rate,
 	clk_writel(LPC18XX_PLL0_NP_DIVS_1, pll->reg + LPC18XX_CGU_PLL0USB_NP_DIV);
 
 	/* Power up PLL and wait for lock */
+	ret = -EINVAL;
 	ctrl &= ~LPC18XX_PLL0_CTRL_PD;
 	clk_writel(ctrl, pll->reg + LPC18XX_CGU_PLL0USB_CTRL);
 	do {
@@ -379,14 +389,17 @@ static int clk_lpc_pll0_usb_set_rate(struct clk_hw *hw, unsigned long rate,
 		if (stat & LPC18XX_PLL0_STAT_LOCK) {
 			ctrl |= LPC18XX_PLL0_CTRL_CLKEN;
 			clk_writel(ctrl, pll->reg + LPC18XX_CGU_PLL0USB_CTRL);
-
-			return 0;
+			ret = 0;
+			break;
 		}
 	} while (retry--);
 
-	pr_warn("%s: unable to lock pll\n", __func__);
+	spin_unlock_irqrestore(pll->lock, flags);
 
-	return -EINVAL;
+	if (ret)
+		pr_warn("%s: unable to lock pll\n", __func__);
+
+	return ret;
 }
 
 static const struct clk_ops clk_lpc_pll0_usb_ops = {
@@ -419,15 +432,18 @@ static void __init lpc18xx_cgu_register_clk_sources(void __iomem *base,
 	parent_name[0] = of_clk_get_parent_name(np, 0);
 	clk = clk_register_gate(NULL, clk_src_names[CLK_SRC_OSC], parent_name[0],
 				0, base + LPC18XX_CGU_XTAL_OSC_CTRL,
-				0, CLK_GATE_SET_TO_DISABLE, NULL);
+				0, CLK_GATE_SET_TO_DISABLE, &clk_cgu_lock);
 
 	/* Register PLL0 for USB */
 	lpc18xx_fill_parent_names(parent_name, clk_pll_muxes[0].table,
 				  clk_pll_muxes[0].table_size);
 	clk_pll_muxes[0].reg = LPC18XX_CGU_PLL0USB_CTRL + base;
+	clk_pll_muxes[0].lock = &clk_cgu_lock;
 	clk_pll_gates[0].reg = LPC18XX_CGU_PLL0USB_CTRL + base;
+	clk_pll_gates[0].lock = &clk_cgu_lock;
 	clk_pll_gates[0].flags = CLK_GATE_SET_TO_DISABLE;
 	clk_lpc_plls[0].reg = base;
+	clk_lpc_plls[0].lock = &clk_cgu_lock;
 	clk = clk_register_composite(NULL, clk_src_names[CLK_SRC_PLL0USB],
 				     parent_name, clk_pll_muxes[0].table_size,
 				     &clk_pll_muxes[0].hw, &clk_mux_ops,
@@ -438,9 +454,12 @@ static void __init lpc18xx_cgu_register_clk_sources(void __iomem *base,
 	lpc18xx_fill_parent_names(parent_name, clk_pll_muxes[1].table,
 				  clk_pll_muxes[1].table_size);
 	clk_pll_muxes[1].reg = LPC18XX_CGU_PLL0AUDIO_CTRL + base;
+	clk_pll_muxes[1].lock = &clk_cgu_lock;
 	clk_pll_gates[1].reg = LPC18XX_CGU_PLL0AUDIO_CTRL + base;
+	clk_pll_gates[1].lock = &clk_cgu_lock;
 	clk_pll_gates[1].flags = CLK_GATE_SET_TO_DISABLE;
 	clk_lpc_plls[1].reg = base;
+	clk_lpc_plls[1].lock = &clk_cgu_lock;
 	clk = clk_register_composite(NULL, clk_src_names[CLK_SRC_PLL0AUDIO],
 				     parent_name, clk_pll_muxes[1].table_size,
 				     &clk_pll_muxes[1].hw, &clk_mux_ops,
@@ -451,9 +470,12 @@ static void __init lpc18xx_cgu_register_clk_sources(void __iomem *base,
 	lpc18xx_fill_parent_names(parent_name, clk_pll_muxes[2].table,
 				  clk_pll_muxes[2].table_size);
 	clk_pll_muxes[2].reg = LPC18XX_CGU_PLL1_CTRL + base;
+	clk_pll_muxes[2].lock = &clk_cgu_lock;
 	clk_pll_gates[2].reg = LPC18XX_CGU_PLL1_CTRL + base;
+	clk_pll_gates[2].lock = &clk_cgu_lock;
 	clk_pll_gates[2].flags = CLK_GATE_SET_TO_DISABLE;
 	clk_lpc_plls[2].reg = base;
+	clk_lpc_plls[2].lock = &clk_cgu_lock;
 	clk = clk_register_composite(NULL, clk_src_names[CLK_SRC_PLL1],
 				     parent_name, clk_pll_muxes[2].table_size,
 				     &clk_pll_muxes[2].hw, &clk_mux_ops,
@@ -468,9 +490,11 @@ static void __init lpc18xx_cgu_register_clk_sources(void __iomem *base,
 		clk_idiv_divs[i].reg = LPC18XX_CGU_IDIV_CTRL(i) + base;
 		clk_idiv_gates[i].reg = LPC18XX_CGU_IDIV_CTRL(i) + base;
 		clk_idiv_gates[i].flags = CLK_GATE_SET_TO_DISABLE;
+		clk_idiv_gates[i].lock = &clk_cgu_lock;
 		clk_idiv_muxes[i].reg = LPC18XX_CGU_IDIV_CTRL(i) + base;
 		clk_idiv_muxes[i].mask = 0x1f;
 		clk_idiv_muxes[i].shift = 24;
+		clk_idiv_muxes[i].lock = &clk_cgu_lock;
 
 		clk = clk_register_composite(NULL, clk_src_names[CLK_SRC_IDIVA + i],
 					     parent_name, clk_idiv_muxes[i].table_size,
@@ -501,7 +525,7 @@ static void __init lpc18xx_cgu_register_base_clks(void __iomem *base)
 		clk_register_gate(NULL, base_clk_names[BASE_USB0_CLK],
 				  clk_src_names[CLK_SRC_PLL0USB], 0,
 				  LPC18XX_CGU_BASE_CLK(BASE_USB0_CLK) + base,
-				  0, CLK_GATE_SET_TO_DISABLE, NULL);
+				  0, CLK_GATE_SET_TO_DISABLE, &clk_cgu_lock);
 
 	/* Register all other base clks with gate and mux */
 	for (i = BASE_PERIPH_CLK; i < BASE_CLK_MAX; i++) {
@@ -516,9 +540,11 @@ static void __init lpc18xx_cgu_register_base_clks(void __iomem *base)
 
 		clk_base_gates[i].reg = LPC18XX_CGU_BASE_CLK(i) + base;
 		clk_base_gates[i].flags = CLK_GATE_SET_TO_DISABLE;
+		clk_base_gates[i].lock = &clk_cgu_lock;
 		clk_base_muxes[i].reg = LPC18XX_CGU_BASE_CLK(i) + base;
 		clk_base_muxes[i].mask = 0x1f;
 		clk_base_muxes[i].shift = 24;
+		clk_base_muxes[i].lock = &clk_cgu_lock;
 
 		clk_base[i] =
 			clk_register_composite(NULL, base_clk_names[i],
