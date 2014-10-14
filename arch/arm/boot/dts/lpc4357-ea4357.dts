@@ -23,7 +23,7 @@
 	compatible = "ea,lpc4357-developers-kit", "nxp,lpc4357";
 
 	chosen {
-		bootargs = "console=ttyS0,115200 earlyprintk clk_ignore_unused initrd=0x28d00000,2M root=/dev/ram0 init=/linuxrc";
+		bootargs = "console=ttyS0,115200 earlyprintk initrd=0x28d00000,2M root=/dev/ram0 init=/linuxrc";
 	};
 
 	memory {
