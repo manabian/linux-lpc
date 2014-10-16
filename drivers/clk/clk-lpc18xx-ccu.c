@@ -14,6 +14,7 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/slab.h>
+#include <linux/spinlock.h>
 #include <linux/string.h>
 
 #include <dt-bindings/clock/lpc18xx-cgu.h>
@@ -34,6 +35,7 @@
 struct lpc18xx_branch_clk_data {
 	int *base_ids;
 	int num_base_ids;
+	spinlock_t lock;
 };
 
 struct lpc18xx_clk_branch {
@@ -158,6 +160,8 @@ static int lpc18xx_ccu_gate_endisable(struct clk_hw *hw, bool enable)
 	unsigned long flags = 0;
 	u32 val;
 
+	if (gate->lock)
+		spin_lock_irqsave(gate->lock, flags);
 
 	/*
 	 * Divider field is write only so divider stat field must
@@ -182,6 +186,9 @@ static int lpc18xx_ccu_gate_endisable(struct clk_hw *hw, bool enable)
 	}
 
 	clk_writel(val, gate->reg);
+
+	if (gate->lock)
+		spin_unlock_irqrestore(gate->lock, flags);
 
 	return 0;
 }
@@ -211,7 +218,8 @@ static const struct clk_ops lpc18xx_ccu_gate_ops = {
 
 static void lpc18xx_ccu_register_branch_gate_div(struct lpc18xx_clk_branch *branch,
 						 void __iomem *base,
-						 const char *parent)
+						 const char *parent,
+						 spinlock_t *lock)
 {
 	const struct clk_ops *div_ops = NULL;
 	struct clk_divider *div = NULL;
@@ -225,6 +233,7 @@ static void lpc18xx_ccu_register_branch_gate_div(struct lpc18xx_clk_branch *bran
 		div->reg = branch->offset + base;
 		div->shift = 27;
 		div->width = 1;
+		div->lock = lock;
 
 		div_hw = &div->hw;
 		div_ops = &clk_divider_ro_ops;
@@ -232,6 +241,7 @@ static void lpc18xx_ccu_register_branch_gate_div(struct lpc18xx_clk_branch *bran
 
 	branch->gate.reg = branch->offset + base;
 	branch->gate.bit_idx = 0;
+	branch->gate.lock = lock;
 
 	branch->clk = clk_register_composite(NULL, branch->name, &parent, 1,
 					     NULL, NULL,
@@ -254,7 +264,8 @@ static void lpc18xx_ccu_register_branch_gate_div(struct lpc18xx_clk_branch *bran
 }
 
 static void lpc18xx_ccu_register_branch_clks(void __iomem *base, int base_clk_id,
-					     const char *parent)
+					     const char *parent,
+					     spinlock_t *lock)
 {
 	int i;
 
@@ -263,7 +274,7 @@ static void lpc18xx_ccu_register_branch_clks(void __iomem *base, int base_clk_id
 			continue;
 
 		lpc18xx_ccu_register_branch_gate_div(&clk_branches[i], base,
-						     parent);
+						     parent, lock);
 
 		if (clk_branches[i].flags & CCU_BRANCH_IS_BUS)
 			parent = clk_branches[i].name;
@@ -299,6 +310,7 @@ static void __init lpc18xx_ccu_init(struct device_node *np)
 
 	clk_data->base_ids = base_ids;
 	clk_data->num_base_ids = num_base_ids;
+	spin_lock_init(&clk_data->lock);
 
 	for (i = 0; i < num_base_ids; i++) {
 		parent = of_clk_get_parent_name(np, i);
@@ -311,7 +323,8 @@ static void __init lpc18xx_ccu_init(struct device_node *np)
 
 		clk_data->base_ids[i] = base_clk_id;
 
-		lpc18xx_ccu_register_branch_clks(base, base_clk_id, parent);
+		lpc18xx_ccu_register_branch_clks(base, base_clk_id, parent,
+						 &clk_data->lock);
 	}
 
 
