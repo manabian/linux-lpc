@@ -28,4 +28,11 @@ config SPI_FSL_QUADSPI
 	  This enables support for the Quad SPI controller in master mode.
 	  We only connect the NOR to this controller now.
 
+config SPI_NXP_SPIFI
+	tristate "NXP SPI Flash Interface (SPIFI)"
+	depends on OF && (ARCH_LPC18XX || COMPILE_TEST)
+	help
+	  This enables support for the NXP LPC SPI Flash Interface controller
+	  in master mode. We only connect the NOR to this controller now.
+
 endif # MTD_SPI_NOR
