@@ -953,9 +953,8 @@ static int lpc18xx_pmx_get_func_groups(struct pinctrl_dev *pctldev,
 	return 0;
 }
 
-static int lpc18xx_pmx_enable(struct pinctrl_dev *pctldev,
-				  unsigned function,
-				  unsigned group)
+static int lpc18xx_pmx_set(struct pinctrl_dev *pctldev, unsigned function,
+			   unsigned group)
 {
 	struct lpc18xx_scu_data *scu = pinctrl_dev_get_drvdata(pctldev);
 	struct lpc18xx_pin_caps *pin = lpc18xx_pins[group].drv_data;
@@ -1029,7 +1028,7 @@ static const struct pinmux_ops lpc18xx_pmx_ops = {
 	.get_functions_count	= lpc18xx_pmx_get_funcs_count,
 	.get_function_name	= lpc18xx_pmx_get_func_name,
 	.get_function_groups	= lpc18xx_pmx_get_func_groups,
-	.enable			= lpc18xx_pmx_enable,
+	.set_mux		= lpc18xx_pmx_set
 };
 
 static int lpc18xx_pctl_get_groups_count(struct pinctrl_dev *pctldev)
