@@ -25,6 +25,8 @@
 		serial1 = &uart1;
 		serial2 = &uart2;
 		serial3 = &uart3;
+		spi0 = &ssp0;
+		spi1 = &ssp1;
 	};
 
 	cpus {
@@ -137,6 +139,17 @@
 			status = "disabled";
 		};
 
+		ssp0: ssp@40083000 {
+			compatible = "arm,pl022", "arm,primecell";
+			reg = <0x40083000 0x1000>;
+			interrupts = <22>;
+			clocks = <&ccu2 CLK_APB0_SSP0>, <&ccu1 CLK_CPU_SSP0>;
+			clock-names = "sspclk", "apb_pclk";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
 		timer0: timer@40084000 {
 			compatible = "nxp,lpc3250-timer";
 			reg = <0x40084000 0x1000>;
@@ -189,6 +202,17 @@
 			reg = <0x400c4000 0x1000>;
 			interrupts = <15>;
 			clocks = <&ccu1 CLK_CPU_TIMER3>;
+		};
+
+		ssp1: ssp@400c5000 {
+			compatible = "arm,pl022", "arm,primecell";
+			reg = <0x400c5000 0x1000>;
+			interrupts = <23>;
+			clocks = <&ccu2 CLK_APB2_SSP1>, <&ccu1 CLK_CPU_SSP1>;
+			clock-names = "sspclk", "apb_pclk";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
 		};
 
 		gpio: gpio@400f4000 {
