@@ -21,6 +21,8 @@
 
 / {
 	aliases {
+		i2c0 = &i2c0;
+		i2c1 = &i2c1;
 		serial0 = &uart0;
 		serial1 = &uart1;
 		serial2 = &uart2;
@@ -198,6 +200,16 @@
 			clocks = <&ccu1 CLK_CPU_SCU>;
 		};
 
+		i2c0: i2c@400a1000 {
+			compatible = "nxp,lpc1788-i2c";
+			reg = <0x400a1000 0x1000>;
+			interrupts = <18>;
+			clocks = <&ccu1 CLK_APB1_I2C0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
 		can1: can@400a4000 {
 			compatible = "bosch,c_can";
 			reg = <0x400a4000 0x1000>;
@@ -246,6 +258,16 @@
 			interrupts = <23>;
 			clocks = <&ccu2 CLK_APB2_SSP1>, <&ccu1 CLK_CPU_SSP1>;
 			clock-names = "sspclk", "apb_pclk";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
+		i2c1: i2c@400e0000 {
+			compatible = "nxp,lpc1788-i2c";
+			reg = <0x400e0000 0x1000>;
+			interrupts = <19>;
+			clocks = <&ccu1 CLK_APB3_I2C1>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 			status = "disabled";
