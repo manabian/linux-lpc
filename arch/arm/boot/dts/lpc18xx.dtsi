@@ -79,6 +79,17 @@
 	};
 
 	soc {
+		spifi: spifi@40003000 {
+			compatible = "nxp,lpc1773-spifi";
+			reg = <0x40003000 0x1000>;
+			interrupts = <30>;
+			clocks = <&ccu1 CLK_SPIFI>, <&ccu1 CLK_CPU_SPIFI>;
+			clock-names = "spifi", "reg";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
 		mmcsd: mmcsd@40004000 {
 			compatible = "snps,dw-mshc";
 			reg = <0x40004000 0x1000>;
