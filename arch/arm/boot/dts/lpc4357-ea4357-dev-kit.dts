@@ -442,3 +442,11 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart0_pins>;
 };
+
+&usb0_otg_phy {
+	status = "okay";
+};
+
+&usb0 {
+       status = "okay";
+};
