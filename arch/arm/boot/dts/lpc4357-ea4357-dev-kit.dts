@@ -48,6 +48,10 @@
 	};
 };
 
+&rtc {
+	status = "okay";
+};
+
 &uart0 {
 	status = "okay";
 	pinctrl-names = "default";
