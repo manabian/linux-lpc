@@ -19,6 +19,9 @@
 #define LPC_PIN(port, pin)	(0x##port * 32 + pin)
 #define LPC_GPIO(port, pin)	(port * 32 + pin)
 
+#define PL08X_AHB1             (1 << 0)
+#define PL08X_AHB2             (1 << 1)
+
 / {
 	aliases {
 		i2c0 = &i2c0;
@@ -277,6 +280,9 @@
 			interrupts = <24>;
 			clocks = <&ccu2 CLK_APB0_UART0>, <&ccu1 CLK_CPU_UART0>;
 			clock-names = "uartclk", "reg";
+			dmas = <&dmamux 1 1 PL08X_AHB2
+				&dmamux 2 1 PL08X_AHB2>;
+			dma-names = "tx", "rx";
 			status = "disabled";
 		};
 
@@ -287,6 +293,9 @@
 			interrupts = <25>;
 			clocks = <&ccu2 CLK_APB0_UART1>, <&ccu1 CLK_CPU_UART1>;
 			clock-names = "uartclk", "reg";
+			dmas = <&dmamux 3 1 PL08X_AHB2
+				&dmamux 4 1 PL08X_AHB2>;
+			dma-names = "tx", "rx";
 			status = "disabled";
 		};
 
@@ -296,6 +305,9 @@
 			interrupts = <22>;
 			clocks = <&ccu2 CLK_APB0_SSP0>, <&ccu1 CLK_CPU_SSP0>;
 			clock-names = "sspclk", "apb_pclk";
+			dmas = <&dmamux  9 0 PL08X_AHB2
+				&dmamux 10 0 PL08X_AHB2>;
+			dma-names = "rx", "tx";
 			#address-cells = <1>;
 			#size-cells = <0>;
 			status = "disabled";
@@ -375,6 +387,9 @@
 			interrupts = <26>;
 			clocks = <&ccu2 CLK_APB2_UART2>, <&ccu1 CLK_CPU_UART2>;
 			clock-names = "uartclk", "reg";
+			dmas = <&dmamux 5 1 PL08X_AHB2
+				&dmamux 6 1 PL08X_AHB2>;
+			dma-names = "rx", "tx";
 			status = "disabled";
 		};
 
@@ -385,6 +400,9 @@
 			interrupts = <27>;
 			clocks = <&ccu2 CLK_APB2_UART3>, <&ccu1 CLK_CPU_UART3>;
 			clock-names = "uartclk", "reg";
+			dmas = <&dmamux 7 1 PL08X_AHB2
+				&dmamux 8 1 PL08X_AHB2>;
+			dma-names = "tx", "rx";
 			status = "disabled";
 		};
 
@@ -408,6 +426,9 @@
 			interrupts = <23>;
 			clocks = <&ccu2 CLK_APB2_SSP1>, <&ccu1 CLK_CPU_SSP1>;
 			clock-names = "sspclk", "apb_pclk";
+			dmas = <&dmamux 11 PL08X_AHB2 0
+				&dmamux 12 PL08X_AHB2 0>;
+			dma-names = "rx", "tx";
 			#address-cells = <1>;
 			#size-cells = <0>;
 			status = "disabled";
