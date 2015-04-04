@@ -2042,67 +2042,66 @@ static inline void init_pl08x_debugfs(struct pl08x_driver_data *pl08x)
 #endif
 
 #ifdef CONFIG_OF
-static int pl08x_of_parse_channel(struct amba_device *adev,
-				  struct device_node *np,
-				  struct pl08x_channel_data *chan)
+static struct dma_chan *pl08x_find_chan_id(struct pl08x_driver_data *pl08x,
+					 u32 id)
 {
-	const char *signal_name;
-	int ret;
+	struct pl08x_dma_chan *chan;
 
-	ret = of_property_read_string(np, "signal", &signal_name);
-	if (ret) {
-		dev_err(&adev->dev, "no signal name for channel\n");
-		return ret;
-	}
-	chan->bus_id = signal_name;
-
-	/* Parse the channel settings */
-	chan->bus_id = signal_name;
-	if (of_property_read_bool(np, "bus-interface-ahb1"))
-		chan->periph_buses |= PL08X_AHB1;
-	if (of_property_read_bool(np, "bus-interface-ahb2"))
-		chan->periph_buses |= PL08X_AHB2;
-	if (!chan->periph_buses) {
-		dev_err(&adev->dev, "no bus master for channel %s!\n",
-			signal_name);
-		return -EINVAL;
+	list_for_each_entry(chan, &pl08x->slave.channels, vc.chan.device_node) {
+		if (chan->signal == id)
+			return &chan->vc.chan;
 	}
 
-	return 0;
+	return NULL;
 }
 
 static struct dma_chan *pl08x_of_xlate(struct of_phandle_args *dma_spec,
 				       struct of_dma *ofdma)
 {
 	struct pl08x_driver_data *pl08x = ofdma->of_dma_data;
-	u32 index = dma_spec->args[0];
-	const char *channel_name;
-	dma_cap_mask_t cap;
-	dma_cap_zero(cap);
-	dma_cap_set(DMA_SLAVE, cap);
+	struct pl08x_channel_data *data;
+	struct pl08x_dma_chan *chan;
+	struct dma_chan *dma_chan;
 
-	if (index > pl08x->pd->num_slave_channels) {
-		dev_err(&pl08x->adev->dev, "undefined channel requested (%u)\n",
-			index);
+	if (!pl08x)
 		return NULL;
-	}
-	channel_name = pl08x->pd->slave_channels[index].bus_id;
-	dev_dbg(&pl08x->adev->dev, "requested channel %u \"%s\"\n",
-		index, channel_name);
 
-	return dma_request_channel(cap, pl08x_filter_id, (void *) channel_name);
+	if (dma_spec->args_count != 2)
+		return NULL;
+
+	dma_chan = pl08x_find_chan_id(pl08x, dma_spec->args[0]);
+	if (dma_chan)
+		return dma_get_slave_channel(dma_chan);
+
+	chan = devm_kzalloc(pl08x->slave.dev, sizeof(*chan) + sizeof(*data),
+			    GFP_KERNEL);
+	if (!chan)
+		return NULL;
+
+	data = (void *)&chan[1];
+	data->bus_id = "(none)";
+	data->periph_buses = dma_spec->args[1];
+
+	chan->cd = data;
+	chan->host = pl08x;
+	chan->slave = true;
+	chan->name = data->bus_id;
+	chan->state = PL08X_CHAN_IDLE;
+	chan->signal = dma_spec->args[0];
+	chan->vc.desc_free = pl08x_desc_free;
+
+	vchan_init(&chan->vc, &pl08x->slave);
+
+	return dma_get_slave_channel(&chan->vc.chan);
 }
 
 static int pl08x_of_probe(struct amba_device *adev,
 			  struct pl08x_driver_data *pl08x,
 			  struct device_node *np)
 {
-	struct device_node *child;
-	struct pl08x_channel_data *chanp = NULL;
 	struct pl08x_platform_data *pd;
 	u32 cctl_memcpy = 0;
 	u32 val;
-	int channels;
 	int ret;
 
 	pd = devm_kzalloc(&adev->dev,
@@ -2208,39 +2207,10 @@ static int pl08x_of_probe(struct amba_device *adev,
 	/* Use the buses that can access memory, obviously */
 	pd->memcpy_channel.periph_buses = pd->mem_buses;
 
-	channels = of_get_child_count(np);
-	if (!channels)
-		goto out_no_slaves;
-	if (channels > 32) {
-		dev_info(&adev->dev, "more than 32 channels specified, ignoring the surplus channels\n");
-		channels = 32;
-	}
-
-	pd->num_slave_channels = channels;
-	chanp = devm_kzalloc(&adev->dev,
-			channels *
-			sizeof(struct pl08x_channel_data),
-			GFP_KERNEL);
-	if (!chanp)
-		return -ENOMEM;
-	pd->slave_channels = chanp;
-
-	/* Parse all children, defining the channels */
-	for_each_child_of_node(np, child) {
-		ret = pl08x_of_parse_channel(adev, child, chanp);
-		if (ret)
-			return ret;
-		chanp++;
-	}
-
-	ret = of_dma_controller_register(adev->dev.of_node, pl08x_of_xlate,
-					 pl08x);
-	if (ret)
-		return ret;
-
-out_no_slaves:
 	pl08x->pd = pd;
-	return 0;
+
+	return of_dma_controller_register(adev->dev.of_node, pl08x_of_xlate,
+					  pl08x);
 }
 #else
 static inline int pl08x_of_probe(struct amba_device *adev,
