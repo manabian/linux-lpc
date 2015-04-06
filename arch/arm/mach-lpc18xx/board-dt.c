@@ -20,5 +20,4 @@ static const char *const lpc18xx_43xx_compat[] __initconst = {
 
 DT_MACHINE_START(LPC18XXDT, "NXP LPC18xx/43xx (Device Tree Support)")
 	.dt_compat = lpc18xx_43xx_compat,
-	.restart = armv7m_restart,
 MACHINE_END
