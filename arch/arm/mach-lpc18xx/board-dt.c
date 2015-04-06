@@ -15,6 +15,7 @@
 
 static const char *const lpc18xx_43xx_compat[] __initconst = {
 	"ea,lpc4357-developers-kit",
+	"hitex,lpc4350-eval-board",
 	NULL
 };
 
