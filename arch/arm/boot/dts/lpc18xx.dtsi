@@ -87,6 +87,16 @@
 			status = "disabled";
 		};
 
+		lcdc: lcdc@40008000 {
+			compatible = "arm,pl110", "arm,primecell";
+			reg = <0x40008000 0x1000>;
+			interrupts = <7>;
+			interrupt-names = "combined";
+			clocks = <&cgu BASE_LCD_CLK>, <&ccu1 CLK_CPU_LCD>;
+			clock-names = "clcdclk", "apb_pclk";
+			status = "disabled";
+		};
+
 		cgu: cgu@40050000 {
 			compatible = "nxp,lpc1850-cgu";
 			reg = <0x40050000 0x1000>;
