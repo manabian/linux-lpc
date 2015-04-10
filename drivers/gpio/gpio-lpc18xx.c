@@ -9,6 +9,7 @@
  *
  */
 
+#include <linux/basic_mmio_gpio.h>
 #include <linux/clk.h>
 #include <linux/gpio/driver.h>
 #include <linux/io.h>
@@ -19,115 +20,81 @@
 #include <linux/platform_device.h>
 
 /* LPC18xx GPIO register offsets */
-#define LPC18XX_REG_PWORD(n)	(0x1000 + n * sizeof(u32))
 #define LPC18XX_REG_DIR(n)	(0x2000 + n * sizeof(u32))
+#define LPC18XX_REG_PIN(n)	(0x2100 + n * sizeof(u32))
 #define LPC18XX_REG_SET(n)	(0x2200 + n * sizeof(u32))
 #define LPC18XX_REG_CLR(n)	(0x2280 + n * sizeof(u32))
 
-#define LPC18XX_MAX_PORTS	8
-#define LPC18XX_PINS_PER_PORT	32
+#define LPC18XX_GPIO_PORTS	8
 
 struct lpc18xx_gpio_chip {
-	struct gpio_chip gpio;
-	void __iomem *base;
 	struct clk *clk;
+	void __iomem *base;
+	struct bgpio_chip bgc[LPC18XX_GPIO_PORTS];
 };
 
-static inline struct lpc18xx_gpio_chip *to_lpc18xx_gpio(struct gpio_chip *chip)
+static int lpc18xx_gpio_xlate(struct gpio_chip *gc,
+			      const struct of_phandle_args *gspec, u32 *flags)
 {
-	return container_of(chip, struct lpc18xx_gpio_chip, gpio);
+	u32 gpio;
+
+	if (WARN_ON(gspec->args_count < gc->of_gpio_n_cells))
+		return -EINVAL;
+
+	gpio = gspec->args[0];
+	if (gc->base > gpio || gpio >= (gc->base + gc->ngpio))
+		return -EINVAL;
+
+	if (flags)
+		*flags = gspec->args[1];
+
+	return gpio % gc->ngpio;
 }
 
 static int lpc18xx_gpio_request(struct gpio_chip *chip, unsigned offset)
 {
-	return pinctrl_request_gpio(offset);
+	return pinctrl_request_gpio(chip->base + offset);
 }
 
 static void lpc18xx_gpio_free(struct gpio_chip *chip, unsigned offset)
 {
-	pinctrl_free_gpio(offset);
+	pinctrl_free_gpio(chip->base + offset);
 }
 
-static void lpc18xx_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
+static int lpc18xx_gpio_add_port(struct lpc18xx_gpio_chip *gc,
+				 struct device *dev, int port)
 {
-	struct lpc18xx_gpio_chip *gc = to_lpc18xx_gpio(chip);
-	u32 port, pin, reg_offset;
+	void __iomem *dat = gc->base + LPC18XX_REG_PIN(port);
+	void __iomem *dir = gc->base + LPC18XX_REG_DIR(port);
+	void __iomem *set = gc->base + LPC18XX_REG_SET(port);
+	void __iomem *clr = gc->base + LPC18XX_REG_CLR(port);
+	struct bgpio_chip *bgc = &gc->bgc[port];
+	int ret;
 
-	port = offset / LPC18XX_PINS_PER_PORT;
-	pin = offset % LPC18XX_PINS_PER_PORT;
+	ret = bgpio_init(bgc, dev, 4, dat, set, clr, dir, NULL, 0);
+	if (ret)
+		return ret;
 
-	if (value)
-		reg_offset = LPC18XX_REG_SET(port);
-	else
-		reg_offset = LPC18XX_REG_CLR(port);
+	bgc->gc.base	= port * bgc->gc.ngpio;
+	bgc->gc.request	= lpc18xx_gpio_request;
+	bgc->gc.free	= lpc18xx_gpio_free;
 
-	writel(1 << pin, gc->base + reg_offset);
+	bgc->gc.of_xlate = lpc18xx_gpio_xlate;
+	bgc->gc.of_gpio_n_cells	= 2;
+
+	return gpiochip_add(&bgc->gc);
 }
-
-static int lpc18xx_gpio_get(struct gpio_chip *chip, unsigned offset)
-{
-	struct lpc18xx_gpio_chip *gc = to_lpc18xx_gpio(chip);
-	u32 reg_offset = LPC18XX_REG_PWORD(offset);
-
-	return !!readl(gc->base + reg_offset);
-}
-
-static int lpc18xx_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
-{
-	struct lpc18xx_gpio_chip *gc = to_lpc18xx_gpio(chip);
-	u32 port, pin, dir, reg_offset;
-
-	port = offset / LPC18XX_PINS_PER_PORT;
-	pin = offset % LPC18XX_PINS_PER_PORT;
-	reg_offset = LPC18XX_REG_DIR(port);
-
-	dir = readl(gc->base + reg_offset) & ~BIT(pin);
-	writel(dir, gc->base + reg_offset);
-
-	return 0;
-}
-
-static int lpc18xx_gpio_direction_output(struct gpio_chip *chip,
-					unsigned offset, int value)
-{
-	struct lpc18xx_gpio_chip *gc = to_lpc18xx_gpio(chip);
-	u32 port, pin, dir, reg_offset;
-
-	lpc18xx_gpio_set(chip, offset, value);
-
-	port = offset / LPC18XX_PINS_PER_PORT;
-	pin = offset % LPC18XX_PINS_PER_PORT;
-	reg_offset = LPC18XX_REG_DIR(port);
-
-	dir = readl(gc->base + reg_offset) | BIT(pin);
-	writel(dir, gc->base + reg_offset);
-
-	return 0;
-}
-
-static struct gpio_chip lpc18xx_chip = {
-	.label			= "lpc18xx/43xx-gpio",
-	.request		= lpc18xx_gpio_request,
-	.free			= lpc18xx_gpio_free,
-	.direction_input	= lpc18xx_gpio_direction_input,
-	.direction_output	= lpc18xx_gpio_direction_output,
-	.set			= lpc18xx_gpio_set,
-	.get			= lpc18xx_gpio_get,
-	.ngpio			= LPC18XX_MAX_PORTS * LPC18XX_PINS_PER_PORT,
-	.owner			= THIS_MODULE,
-};
 
 static int lpc18xx_gpio_probe(struct platform_device *pdev)
 {
 	struct lpc18xx_gpio_chip *gc;
 	struct resource *res;
-	int ret;
+	int i, ret;
 
 	gc = devm_kzalloc(&pdev->dev, sizeof(*gc), GFP_KERNEL);
 	if (!gc)
 		return -ENOMEM;
 
-	gc->gpio = lpc18xx_chip;
 	platform_set_drvdata(pdev, gc);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -137,24 +104,20 @@ static int lpc18xx_gpio_probe(struct platform_device *pdev)
 
 	gc->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(gc->clk)) {
-		dev_err(&pdev->dev, "Input clock not found.\n");
+		dev_err(&pdev->dev, "input clock not found\n");
 		return PTR_ERR(gc->clk);
 	}
 
 	ret = clk_prepare_enable(gc->clk);
 	if (ret) {
-		dev_err(&pdev->dev, "Unable to enable clock.\n");
+		dev_err(&pdev->dev, "unable to enable clock\n");
 		return ret;
 	}
 
-	gc->gpio.dev = &pdev->dev;
-	gc->gpio.of_node = pdev->dev.of_node;
-
-	ret = gpiochip_add(&gc->gpio);
-	if (ret) {
-		dev_err(&pdev->dev, "Failed to add gpio chip\n");
-		clk_disable_unprepare(gc->clk);
-		return ret;
+	for (i = 0; i < LPC18XX_GPIO_PORTS; i++) {
+		ret = lpc18xx_gpio_add_port(gc, &pdev->dev, i);
+		if (ret)
+			dev_warn(&pdev->dev, "unable to add port %d\n", i);
 	}
 
 	return 0;
@@ -163,8 +126,11 @@ static int lpc18xx_gpio_probe(struct platform_device *pdev)
 static int lpc18xx_gpio_remove(struct platform_device *pdev)
 {
 	struct lpc18xx_gpio_chip *gc = platform_get_drvdata(pdev);
+	int i;
 
-	gpiochip_remove(&gc->gpio);
+	for (i = 0; i < LPC18XX_GPIO_PORTS; i++)
+		bgpio_remove(&gc->bgc[i]);
+
 	clk_disable_unprepare(gc->clk);
 
 	return 0;

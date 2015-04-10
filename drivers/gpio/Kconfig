@@ -214,6 +214,7 @@ config GPIO_MOXART
 config GPIO_LPC18XX
 	bool "NXP LPC18XX/43XX GPIO support"
 	default y if ARCH_LPC18XX
+	select GPIO_GENERIC
 	depends on OF_GPIO && (ARCH_LPC18XX || COMPILE_TEST)
 	help
 	  Select this option to enable GPIO driver for
