@@ -1,5 +1,5 @@
 /*
- * NXP LPC4357 SoC
+ * NXP LPC435x, LPC433x, LPC4327, LPC4325, LPC4317 and LPC4315 SoC
  *
  * Copyright 2015 Joachim Eastwood <manabian@gmail.com>
  *

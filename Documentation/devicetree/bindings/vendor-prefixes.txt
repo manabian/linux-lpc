@@ -55,6 +55,7 @@ digilent	Diglent, Inc.
 dlg	Dialog Semiconductor
 dlink	D-Link Corporation
 dmo	Data Modul AG
+ea	Embedded Artists AB
 ebv	EBV Elektronik
 edt	Emerging Display Technologies
 elan	Elan Microelectronic Corp.
