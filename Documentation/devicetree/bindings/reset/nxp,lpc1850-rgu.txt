@@ -1,0 +1,38 @@
+NXP LPC1850  Reset Generation Unit (RGU)
+========================================
+
+Please also refer to reset.txt in this directory for common reset
+controller binding usage.
+
+Required properties:
+- compatible: Should be "nxp,lpc1850-rgu"
+- reg: register base and length
+- clocks: phandle and clock specifier to RGU clocks
+- clock-names: should contain "delay" and "reg"
+- #reset-cells: should be 1
+
+Refer to NXP LPC18xx or LPC43xx user manual for a description of the
+reset signals and the connected block/peripheral.
+
+Reset provider example:
+rgu: reset-controller@40053000 {
+	compatible = "nxp,lpc1850-rgu";
+	reg = <0x40053000 0x1000>;
+	clocks = <&cgu BASE_SAFE_CLK>, <&ccu1 CLK_CPU_BUS>;
+	clock-names = "delay", "reg";
+	#reset-cells = <1>;
+};
+
+Reset consumer example:
+mac: ethernet@40010000 {
+	compatible = "nxp,lpc1850-dwmac", "snps,dwmac-3.611", "snps,dwmac";
+	reg = <0x40010000 0x2000>;
+	interrupts = <5>;
+	interrupt-names = "macirq";
+	clocks = <&ccu1 CLK_CPU_ETHERNET>;
+	clock-names = "stmmaceth";
+	resets = <&rgu 22>;
+	reset-names = "stmmaceth";
+	status = "disabled";
+};
+
