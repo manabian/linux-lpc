@@ -146,3 +146,10 @@ config KEYSTONE_IRQ
 config MIPS_GIC
 	bool
 	select MIPS_CM
+
+config LPC18XX_GPIO_GRP_IRQ
+	bool
+	depends on GPIO_LPC18XX
+	select IRQ_DOMAIN
+	select GENERIC_IRQ_CHIP
+	default y
