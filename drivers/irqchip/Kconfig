@@ -230,6 +230,13 @@ config KEYSTONE_IRQ
 		Support for Texas Instruments Keystone 2 IRQ controller IP which
 		is part of the Keystone 2 IPC mechanism
 
+config LPC18XX_GPIO_GRP_IRQ
+	bool
+	depends on GPIO_LPC18XX
+	select IRQ_DOMAIN
+	select GENERIC_IRQ_CHIP
+	default y
+
 config LPC18XX_GPIO_PINT
 	bool
 	select IRQ_DOMAIN
