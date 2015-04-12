@@ -94,6 +94,7 @@ config PINCTRL_LANTIQ
 config PINCTRL_LPC18XX
 	bool "NXP LPC18XX/43XX SCU pinctrl driver"
 	depends on OF && (ARCH_LPC18XX || COMPILE_TEST)
+	default ARCH_LPC18XX
 	select PINMUX
 	select GENERIC_PINCONF
 	help

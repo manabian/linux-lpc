@@ -1031,7 +1031,7 @@ static const struct pinmux_ops lpc18xx_pmx_ops = {
 	.get_functions_count	= lpc18xx_pmx_get_funcs_count,
 	.get_function_name	= lpc18xx_pmx_get_func_name,
 	.get_function_groups	= lpc18xx_pmx_get_func_groups,
-	.set_mux		= lpc18xx_pmx_set
+	.set_mux		= lpc18xx_pmx_set,
 };
 
 static int lpc18xx_pctl_get_groups_count(struct pinctrl_dev *pctldev)
@@ -1073,7 +1073,6 @@ static struct pinctrl_desc lpc18xx_scu_desc = {
 	.confops = &lpc18xx_pconf_ops,
 	.owner = THIS_MODULE,
 };
-
 
 static int lpc18xx_scu_probe(struct platform_device *pdev)
 {
