@@ -24,7 +24,6 @@ obj-$(CONFIG_COMMON_CLK_CDCE706)	+= clk-cdce706.o
 obj-$(CONFIG_ARCH_CLPS711X)		+= clk-clps711x.o
 obj-$(CONFIG_ARCH_EFM32)		+= clk-efm32gg.o
 obj-$(CONFIG_ARCH_HIGHBANK)		+= clk-highbank.o
-obj-$(CONFIG_ARCH_LPC18XX)		+= clk-lpc18xx-cgu.o
 obj-$(CONFIG_ARCH_LPC18XX)		+= clk-lpc18xx-ccu.o
 obj-$(CONFIG_ARCH_LPC18XX)		+= clk-lpc18xx-creg.o
 obj-$(CONFIG_MACH_LOONGSON1)		+= clk-ls1x.o
@@ -57,6 +56,7 @@ obj-$(CONFIG_ARCH_MMP)			+= mmp/
 endif
 obj-$(CONFIG_PLAT_ORION)		+= mvebu/
 obj-$(CONFIG_ARCH_MXS)			+= mxs/
+obj-$(CONFIG_ARCH_LPC18XX)		+= nxp/
 obj-$(CONFIG_COMMON_CLK_PXA)		+= pxa/
 obj-$(CONFIG_COMMON_CLK_QCOM)		+= qcom/
 obj-$(CONFIG_ARCH_ROCKCHIP)		+= rockchip/
