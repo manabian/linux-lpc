@@ -34,8 +34,9 @@
 #define  LPC18XX_PLL1_CTRL_DIRECT	BIT(7)
 #define LPC18XX_CGU_IDIV_CTRL(n)	(0x048 + (n) * sizeof(u32))
 #define LPC18XX_CGU_BASE_CLK(id)	(0x05c + (id) * sizeof(u32))
+#define LPC18XX_CGU_PLL_CTRL_OFFSET	0x4
 
-/* PLL0 bits common to both audio and USB0 PLL */
+/* PLL0 bits common to both audio and USB PLL */
 #define LPC18XX_PLL0_STAT_LOCK		BIT(0)
 #define LPC18XX_PLL0_CTRL_PD		BIT(0)
 #define LPC18XX_PLL0_CTRL_BYPASS	BIT(1)
@@ -49,9 +50,6 @@
 
 /* Register value that gives PLL0 post/pre dividers equal to 1 */
 #define LPC18XX_PLL0_NP_DIVS_1		0x00302062
-
-#define LPC18XX_CGU_PLLS_NUM		3
-#define LPC18XX_CGU_DIVIDERS_NUM	5
 
 enum {
 	CLK_SRC_OSC32,
@@ -80,13 +78,10 @@ static const char *clk_src_names[CLK_SRC_MAX] = {
 	[CLK_SRC_ENET_RX_CLK]	= "enet_rx_clk",
 	[CLK_SRC_ENET_TX_CLK]	= "enet_tx_clk",
 	[CLK_SRC_GP_CLKIN]	= "gp_clkin",
-	[CLK_SRC_RESERVED1]	= "",
 	[CLK_SRC_OSC]		= "osc",
 	[CLK_SRC_PLL0USB]	= "pll0usb",
 	[CLK_SRC_PLL0AUDIO]	= "pll0audio",
 	[CLK_SRC_PLL1]		= "pll1",
-	[CLK_SRC_RESERVED2]	= "",
-	[CLK_SRC_RESERVED3]	= "",
 	[CLK_SRC_IDIVA]		= "idiva",
 	[CLK_SRC_IDIVB]		= "idivb",
 	[CLK_SRC_IDIVC]		= "idivc",
@@ -94,35 +89,46 @@ static const char *clk_src_names[CLK_SRC_MAX] = {
 	[CLK_SRC_IDIVE]		= "idive",
 };
 
-static const char *base_clk_names[BASE_CLK_MAX];
+static const char *clk_base_names[BASE_CLK_MAX];
 
-static u32 pll0_srcs_ids[] = {
+static u32 lpc18xx_cgu_pll0_src_ids[] = {
 	CLK_SRC_OSC32, CLK_SRC_IRC, CLK_SRC_ENET_RX_CLK,
 	CLK_SRC_ENET_TX_CLK, CLK_SRC_GP_CLKIN, CLK_SRC_OSC,
 	CLK_SRC_PLL1, CLK_SRC_IDIVA, CLK_SRC_IDIVB, CLK_SRC_IDIVC,
 	CLK_SRC_IDIVD, CLK_SRC_IDIVE,
 };
 
-static u32 pll1_srcs_ids[] = {
+static u32 lpc18xx_cgu_pll1_src_ids[] = {
 	CLK_SRC_OSC32, CLK_SRC_IRC, CLK_SRC_ENET_RX_CLK,
 	CLK_SRC_ENET_TX_CLK, CLK_SRC_GP_CLKIN, CLK_SRC_OSC,
 	CLK_SRC_PLL0USB, CLK_SRC_PLL0AUDIO, CLK_SRC_IDIVA,
 	CLK_SRC_IDIVB, CLK_SRC_IDIVC, CLK_SRC_IDIVD, CLK_SRC_IDIVE,
 };
 
-static u32 idiva_src_ids[] = {
+static u32 lpc18xx_cgu_idiva_src_ids[] = {
 	CLK_SRC_OSC32, CLK_SRC_IRC, CLK_SRC_ENET_RX_CLK,
 	CLK_SRC_ENET_TX_CLK, CLK_SRC_GP_CLKIN, CLK_SRC_OSC,
 	CLK_SRC_PLL0USB, CLK_SRC_PLL0AUDIO, CLK_SRC_PLL1
 };
 
-static u32 idivbcde_src_ids[] = {
+static u32 lpc18xx_cgu_idivbcde_src_ids[] = {
 	CLK_SRC_OSC32, CLK_SRC_IRC, CLK_SRC_ENET_RX_CLK,
 	CLK_SRC_ENET_TX_CLK, CLK_SRC_GP_CLKIN, CLK_SRC_OSC,
 	CLK_SRC_PLL0AUDIO, CLK_SRC_PLL1, CLK_SRC_IDIVA,
 };
 
-static u32 base_all_srcs_ids[] = {
+static u32 lpc18xx_cgu_base_irc_src_ids[] = {CLK_SRC_IRC};
+
+static u32 lpc18xx_cgu_base_usb0_src_ids[] = {CLK_SRC_PLL0USB};
+
+static u32 lpc18xx_cgu_base_common_src_ids[] = {
+	CLK_SRC_OSC32, CLK_SRC_IRC, CLK_SRC_ENET_RX_CLK,
+	CLK_SRC_ENET_TX_CLK, CLK_SRC_GP_CLKIN, CLK_SRC_OSC,
+	CLK_SRC_PLL0AUDIO, CLK_SRC_PLL1, CLK_SRC_IDIVA,
+	CLK_SRC_IDIVB, CLK_SRC_IDIVC, CLK_SRC_IDIVD, CLK_SRC_IDIVE,
+};
+
+static u32 lpc18xx_cgu_base_all_src_ids[] = {
 	CLK_SRC_OSC32, CLK_SRC_IRC, CLK_SRC_ENET_RX_CLK,
 	CLK_SRC_ENET_TX_CLK, CLK_SRC_GP_CLKIN, CLK_SRC_OSC,
 	CLK_SRC_PLL0USB, CLK_SRC_PLL0AUDIO, CLK_SRC_PLL1,
@@ -130,113 +136,133 @@ static u32 base_all_srcs_ids[] = {
 	CLK_SRC_IDIVD, CLK_SRC_IDIVE,
 };
 
-static u32 base_common_srcs_ids[] = {
-	CLK_SRC_OSC32, CLK_SRC_IRC, CLK_SRC_ENET_RX_CLK,
-	CLK_SRC_ENET_TX_CLK, CLK_SRC_GP_CLKIN, CLK_SRC_OSC,
-	CLK_SRC_PLL0AUDIO, CLK_SRC_PLL1, CLK_SRC_IDIVA,
-	CLK_SRC_IDIVB, CLK_SRC_IDIVC, CLK_SRC_IDIVD, CLK_SRC_IDIVE,
+struct lpc18xx_cgu_src_clk_div {
+	u8 clk_id;
+	u8 n_parents;
+	struct clk_divider	div;
+	struct clk_mux		mux;
+	struct clk_gate		gate;
 };
 
-#define CLK_MUX_TABLE(t) .table = t, .table_size = ARRAY_SIZE(t)
+#define LPC1XX_CGU_SRC_CLK_DIV(_id, _width, _table)	\
+{							\
+	.clk_id = CLK_SRC_ ##_id,			\
+	.n_parents = ARRAY_SIZE(lpc18xx_cgu_ ##_table),	\
+	.div = {					\
+		.shift = 2,				\
+		.width = _width,			\
+	},						\
+	.mux = {					\
+		.mask = 0x1f,				\
+		.shift = 24,				\
+		.table = lpc18xx_cgu_ ##_table,		\
+	},						\
+	.gate = {					\
+		.bit_idx = 0,				\
+		.flags = CLK_GATE_SET_TO_DISABLE,	\
+	},						\
+}
 
-static struct clk_gate clk_idiv_gates[LPC18XX_CGU_DIVIDERS_NUM];
-static struct clk_mux  clk_idiv_muxes[LPC18XX_CGU_DIVIDERS_NUM] = {
-	{CLK_MUX_TABLE(idiva_src_ids)},
-	{CLK_MUX_TABLE(idivbcde_src_ids)},
-	{CLK_MUX_TABLE(idivbcde_src_ids)},
-	{CLK_MUX_TABLE(idivbcde_src_ids)},
-	{CLK_MUX_TABLE(idivbcde_src_ids)},
+static struct lpc18xx_cgu_src_clk_div lpc18xx_cgu_src_clk_divs[] = {
+	LPC1XX_CGU_SRC_CLK_DIV(IDIVA, 2, idiva_src_ids),
+	LPC1XX_CGU_SRC_CLK_DIV(IDIVB, 4, idivbcde_src_ids),
+	LPC1XX_CGU_SRC_CLK_DIV(IDIVC, 4, idivbcde_src_ids),
+	LPC1XX_CGU_SRC_CLK_DIV(IDIVD, 4, idivbcde_src_ids),
+	LPC1XX_CGU_SRC_CLK_DIV(IDIVE, 8, idivbcde_src_ids),
 };
 
-static struct clk_divider clk_idiv_divs[LPC18XX_CGU_DIVIDERS_NUM] = {
-	{.shift = 2, .width = 2},
-	{.shift = 2, .width = 4},
-	{.shift = 2, .width = 4},
-	{.shift = 2, .width = 4},
-	{.shift = 2, .width = 8},
+struct lpc18xx_cgu_base_clk {
+	u8 clk_id;
+	u8 n_parents;
+	struct clk_mux mux;
+	struct clk_gate gate;
 };
 
-static struct clk_gate clk_base_gates[BASE_CLK_MAX];
-static struct clk_mux  clk_base_muxes[BASE_CLK_MAX] = {
-	[BASE_SAFE_CLK]		= { /* Source can only be IRC */ },
-	[BASE_USB0_CLK]		= { /* Source can only be USB0PLL */ },
-	[BASE_PERIPH_CLK]	= {CLK_MUX_TABLE(base_common_srcs_ids)},
-	[BASE_USB1_CLK]		= {CLK_MUX_TABLE(base_all_srcs_ids)},
-	[BASE_CPU_CLK]		= {CLK_MUX_TABLE(base_common_srcs_ids)},
-	[BASE_SPIFI_CLK]	= {CLK_MUX_TABLE(base_common_srcs_ids)},
-	[BASE_SPI_CLK]		= {CLK_MUX_TABLE(base_common_srcs_ids)},
-	[BASE_PHY_RX_CLK]	= {CLK_MUX_TABLE(base_common_srcs_ids)},
-	[BASE_PHY_TX_CLK]	= {CLK_MUX_TABLE(base_common_srcs_ids)},
-	[BASE_APB1_CLK]		= {CLK_MUX_TABLE(base_common_srcs_ids)},
-	[BASE_APB3_CLK]		= {CLK_MUX_TABLE(base_common_srcs_ids)},
-	[BASE_LCD_CLK]		= {CLK_MUX_TABLE(base_common_srcs_ids)},
-	[BASE_ADCHS_CLK]	= {CLK_MUX_TABLE(base_common_srcs_ids)},
-	[BASE_SDIO_CLK]		= {CLK_MUX_TABLE(base_common_srcs_ids)},
-	[BASE_SSP0_CLK]		= {CLK_MUX_TABLE(base_common_srcs_ids)},
-	[BASE_SSP1_CLK]		= {CLK_MUX_TABLE(base_common_srcs_ids)},
-	[BASE_UART0_CLK]	= {CLK_MUX_TABLE(base_common_srcs_ids)},
-	[BASE_UART1_CLK]	= {CLK_MUX_TABLE(base_common_srcs_ids)},
-	[BASE_UART2_CLK]	= {CLK_MUX_TABLE(base_common_srcs_ids)},
-	[BASE_UART3_CLK]	= {CLK_MUX_TABLE(base_common_srcs_ids)},
-	[BASE_OUT_CLK]		= {CLK_MUX_TABLE(base_all_srcs_ids)},
-	[BASE_RES1_CLK]		= {},
-	[BASE_RES2_CLK]		= {},
-	[BASE_RES3_CLK]		= {},
-	[BASE_RES4_CLK]		= {},
-	[BASE_AUDIO_CLK]	= {CLK_MUX_TABLE(base_common_srcs_ids)},
-	[BASE_CGU_OUT0_CLK]	= {CLK_MUX_TABLE(base_all_srcs_ids)},
-	[BASE_CGU_OUT1_CLK]	= {CLK_MUX_TABLE(base_all_srcs_ids)},
+#define LPC1XX_CGU_BASE_CLK(_id, _table, _flags)	\
+{							\
+	.clk_id = BASE_ ##_id ##_CLK,			\
+	.n_parents = ARRAY_SIZE(lpc18xx_cgu_ ##_table),	\
+	.mux = {					\
+		.mask = 0x1f,				\
+		.shift = 24,				\
+		.table = lpc18xx_cgu_ ##_table,		\
+		.flags = _flags,			\
+	},						\
+	.gate = {					\
+		.bit_idx = 0,				\
+		.flags = CLK_GATE_SET_TO_DISABLE,	\
+	},						\
+}
+
+static struct lpc18xx_cgu_base_clk lpc18xx_cgu_base_clks[] = {
+	LPC1XX_CGU_BASE_CLK(SAFE,	base_irc_src_ids, CLK_MUX_READ_ONLY),
+	LPC1XX_CGU_BASE_CLK(USB0,	base_usb0_src_ids,   0),
+	LPC1XX_CGU_BASE_CLK(PERIPH,	base_common_src_ids, 0),
+	LPC1XX_CGU_BASE_CLK(USB1,	base_all_src_ids,    0),
+	LPC1XX_CGU_BASE_CLK(CPU,	base_common_src_ids, 0),
+	LPC1XX_CGU_BASE_CLK(SPIFI,	base_common_src_ids, 0),
+	LPC1XX_CGU_BASE_CLK(SPI,	base_common_src_ids, 0),
+	LPC1XX_CGU_BASE_CLK(PHY_RX,	base_common_src_ids, 0),
+	LPC1XX_CGU_BASE_CLK(PHY_TX,	base_common_src_ids, 0),
+	LPC1XX_CGU_BASE_CLK(APB1,	base_common_src_ids, 0),
+	LPC1XX_CGU_BASE_CLK(APB3,	base_common_src_ids, 0),
+	LPC1XX_CGU_BASE_CLK(LCD,	base_common_src_ids, 0),
+	LPC1XX_CGU_BASE_CLK(ADCHS,	base_common_src_ids, 0),
+	LPC1XX_CGU_BASE_CLK(SDIO,	base_common_src_ids, 0),
+	LPC1XX_CGU_BASE_CLK(SSP0,	base_common_src_ids, 0),
+	LPC1XX_CGU_BASE_CLK(SSP1,	base_common_src_ids, 0),
+	LPC1XX_CGU_BASE_CLK(UART0,	base_common_src_ids, 0),
+	LPC1XX_CGU_BASE_CLK(UART1,	base_common_src_ids, 0),
+	LPC1XX_CGU_BASE_CLK(UART2,	base_common_src_ids, 0),
+	LPC1XX_CGU_BASE_CLK(UART3,	base_common_src_ids, 0),
+	LPC1XX_CGU_BASE_CLK(OUT,	base_all_src_ids,    0),
+	{ /* 21 reserved */ },
+	{ /* 22 reserved */ },
+	{ /* 23 reserved */ },
+	{ /* 24 reserved */ },
+	LPC1XX_CGU_BASE_CLK(AUDIO,	base_common_src_ids, 0),
+	LPC1XX_CGU_BASE_CLK(CGU_OUT0,	base_all_src_ids,    0),
+	LPC1XX_CGU_BASE_CLK(CGU_OUT1,	base_all_src_ids,    0),
 };
 
-struct clk_lpc_pll {
+struct lpc18xx_pll {
 	struct		clk_hw hw;
 	void __iomem	*reg;
 	spinlock_t	*lock;
 	u8		flags;
 };
 
-#define to_lpc_pll(hw) container_of(hw, struct clk_lpc_pll, hw)
-static struct clk_lpc_pll clk_lpc_plls[LPC18XX_CGU_PLLS_NUM];
+#define to_lpc_pll(hw) container_of(hw, struct lpc18xx_pll, hw)
 
-static struct clk_gate clk_pll_gates[LPC18XX_CGU_PLLS_NUM];
-static struct clk_mux  clk_pll_muxes[LPC18XX_CGU_PLLS_NUM] = {
-	{CLK_MUX_TABLE(pll0_srcs_ids), .mask = 0x1f, .shift = 24},
-	{CLK_MUX_TABLE(pll0_srcs_ids), .mask = 0x1f, .shift = 24},
-	{CLK_MUX_TABLE(pll1_srcs_ids), .mask = 0x1f, .shift = 24},
+struct lpc18xx_cgu_pll_clk {
+	u8 clk_id;
+	u8 n_parents;
+	u8 reg_offset;
+	struct clk_mux mux;
+	struct clk_gate gate;
+	struct lpc18xx_pll pll;
+	const struct clk_ops *pll_ops;
 };
 
-static unsigned long clk_lpc_pll1_recalc_rate(struct clk_hw *hw,
-					      unsigned long parent_rate)
-{
-	struct clk_lpc_pll *pll = to_lpc_pll(hw);
-	u16 msel, nsel, psel;
-	bool direct, fbsel;
-	u32 stat, ctrl;
-
-	stat = clk_readl(pll->reg + LPC18XX_CGU_PLL1_STAT);
-	ctrl = clk_readl(pll->reg + LPC18XX_CGU_PLL1_CTRL);
-
-	direct = (ctrl & LPC18XX_PLL1_CTRL_DIRECT) ? true : false;
-	fbsel = (ctrl & LPC18XX_PLL1_CTRL_FBSEL) ? true : false;
-
-	msel = ((ctrl >> 16) & 0xff) + 1;
-	nsel = ((ctrl >> 12) & 0x3) + 1;
-
-	if (direct || fbsel)
-		return msel * (parent_rate / nsel);
-
-	psel = (ctrl >>  8) & 0x3;
-	psel = 1 << psel;
-
-	return (msel / (2 * psel)) * (parent_rate / nsel);
+#define LPC1XX_CGU_CLK_PLL(_id, _table, _pll_ops)	\
+{							\
+	.clk_id = CLK_SRC_ ##_id,			\
+	.n_parents = ARRAY_SIZE(lpc18xx_cgu_ ##_table),	\
+	.reg_offset = LPC18XX_CGU_ ##_id ##_STAT,	\
+	.mux = {					\
+		.mask = 0x1f,				\
+		.shift = 24,				\
+		.table = lpc18xx_cgu_ ##_table,		\
+	},						\
+	.gate = {					\
+		.bit_idx = 0,				\
+		.flags = CLK_GATE_SET_TO_DISABLE,	\
+	},						\
+	.pll_ops = &lpc18xx_ ##_pll_ops,		\
 }
 
-const struct clk_ops clk_lpc_pll1_ops = {
-	.recalc_rate = clk_lpc_pll1_recalc_rate,
-};
-
 /*
- * PLL0USB uses a special register value encoding. The compute functions below
+ * PLL0 uses a special register value encoding. The compute functions below
  * are taken or derived from the LPC1850 user manual (section 12.6.3.3).
  */
 
@@ -296,10 +322,10 @@ static u32 lpc18xx_pll0_msel2selp(u32 msel)
 	return 31;
 }
 
-static unsigned long clk_lpc_pll0_usb_recalc_rate(struct clk_hw *hw,
-						  unsigned long parent_rate)
+static unsigned long lpc18xx_pll0_recalc_rate(struct clk_hw *hw,
+					      unsigned long parent_rate)
 {
-	struct clk_lpc_pll *pll = to_lpc_pll(hw);
+	struct lpc18xx_pll *pll = to_lpc_pll(hw);
 	u32 ctrl, mdiv, msel, npdiv;
 
 	ctrl = clk_readl(pll->reg + LPC18XX_CGU_PLL0USB_CTRL);
@@ -323,8 +349,8 @@ static unsigned long clk_lpc_pll0_usb_recalc_rate(struct clk_hw *hw,
 	return 0;
 }
 
-static long clk_lpc_pll0_usb_round_rate(struct clk_hw *hw, unsigned long rate,
-					unsigned long *prate)
+static long lpc18xx_pll0_round_rate(struct clk_hw *hw, unsigned long rate,
+				    unsigned long *prate)
 {
 	unsigned long m;
 
@@ -342,10 +368,10 @@ static long clk_lpc_pll0_usb_round_rate(struct clk_hw *hw, unsigned long rate,
 	return 2 * *prate * m;
 }
 
-static int clk_lpc_pll0_usb_set_rate(struct clk_hw *hw, unsigned long rate,
-				     unsigned long parent_rate)
+static int lpc18xx_pll0_set_rate(struct clk_hw *hw, unsigned long rate,
+				 unsigned long parent_rate)
 {
-	struct clk_lpc_pll *pll = to_lpc_pll(hw);
+	struct lpc18xx_pll *pll = to_lpc_pll(hw);
 	u32 ctrl, stat, m;
 	int retry = 3;
 
@@ -394,14 +420,49 @@ static int clk_lpc_pll0_usb_set_rate(struct clk_hw *hw, unsigned long rate,
 	return -EINVAL;
 }
 
-static const struct clk_ops clk_lpc_pll0_usb_ops = {
-	.recalc_rate	= clk_lpc_pll0_usb_recalc_rate,
-	.round_rate	= clk_lpc_pll0_usb_round_rate,
-	.set_rate	= clk_lpc_pll0_usb_set_rate,
+static const struct clk_ops lpc18xx_pll0_ops = {
+	.recalc_rate	= lpc18xx_pll0_recalc_rate,
+	.round_rate	= lpc18xx_pll0_round_rate,
+	.set_rate	= lpc18xx_pll0_set_rate,
 };
 
-static void __init lpc18xx_fill_parent_names(const char **parent, u32 *id,
-					     int size)
+static unsigned long lpc18xx_pll1_recalc_rate(struct clk_hw *hw,
+					      unsigned long parent_rate)
+{
+	struct lpc18xx_pll *pll = to_lpc_pll(hw);
+	u16 msel, nsel, psel;
+	bool direct, fbsel;
+	u32 stat, ctrl;
+
+	stat = clk_readl(pll->reg + LPC18XX_CGU_PLL1_STAT);
+	ctrl = clk_readl(pll->reg + LPC18XX_CGU_PLL1_CTRL);
+
+	direct = (ctrl & LPC18XX_PLL1_CTRL_DIRECT) ? true : false;
+	fbsel = (ctrl & LPC18XX_PLL1_CTRL_FBSEL) ? true : false;
+
+	msel = ((ctrl >> 16) & 0xff) + 1;
+	nsel = ((ctrl >> 12) & 0x3) + 1;
+
+	if (direct || fbsel)
+		return msel * (parent_rate / nsel);
+
+	psel = (ctrl >>  8) & 0x3;
+	psel = 1 << psel;
+
+	return (msel / (2 * psel)) * (parent_rate / nsel);
+}
+
+static const struct clk_ops lpc18xx_pll1_ops = {
+	.recalc_rate = lpc18xx_pll1_recalc_rate,
+};
+
+static struct lpc18xx_cgu_pll_clk lpc18xx_cgu_src_clk_plls[] = {
+	LPC1XX_CGU_CLK_PLL(PLL0USB,	pll0_src_ids, pll0_ops),
+	LPC1XX_CGU_CLK_PLL(PLL0AUDIO,	pll0_src_ids, pll0_ops),
+	LPC1XX_CGU_CLK_PLL(PLL1,	pll1_src_ids, pll1_ops),
+};
+
+static void lpc18xx_fill_parent_names(const char **parent, u32 *id, int size)
 {
 	int i;
 
@@ -409,79 +470,107 @@ static void __init lpc18xx_fill_parent_names(const char **parent, u32 *id,
 		parent[i] = clk_src_names[id[i]];
 }
 
-static void __init lpc18xx_cgu_register_clk_sources(void __iomem *base,
+static struct clk *lpc18xx_cgu_register_div(struct lpc18xx_cgu_src_clk_div *clk,
+					    void __iomem *base, int n)
+{
+	void __iomem *reg = base + LPC18XX_CGU_IDIV_CTRL(n);
+	const char *name = clk_src_names[clk->clk_id];
+	const char *parents[CLK_SRC_MAX];
+
+	clk->div.reg = reg;
+	clk->mux.reg = reg;
+	clk->gate.reg = reg;
+
+	lpc18xx_fill_parent_names(parents, clk->mux.table, clk->n_parents);
+
+	return clk_register_composite(NULL, name, parents, clk->n_parents,
+				      &clk->mux.hw, &clk_mux_ops,
+				      &clk->div.hw, &clk_divider_ops,
+				      &clk->gate.hw, &clk_gate_ops, 0);
+}
+
+
+static struct clk *lpc18xx_register_base_clk(struct lpc18xx_cgu_base_clk *clk,
+					     void __iomem *base, int n)
+{
+	void __iomem *reg = base + LPC18XX_CGU_BASE_CLK(n);
+	const char *name = clk_base_names[clk->clk_id];
+	const char *parents[CLK_SRC_MAX];
+
+	if (clk->n_parents == 0)
+		return ERR_PTR(-ENOENT);
+
+	clk->mux.reg = reg;
+	clk->gate.reg = reg;
+
+	lpc18xx_fill_parent_names(parents, clk->mux.table, clk->n_parents);
+
+	/* SAFE_CLK can not be turned off */
+	if (n == BASE_SAFE_CLK)
+		return clk_register_composite(NULL, name, parents, clk->n_parents,
+					      &clk->mux.hw, &clk_mux_ops,
+					      NULL, NULL, NULL, NULL, 0);
+
+	return clk_register_composite(NULL, name, parents, clk->n_parents,
+				      &clk->mux.hw, &clk_mux_ops,
+				      NULL,  NULL,
+				      &clk->gate.hw, &clk_gate_ops, 0);
+}
+
+
+static struct clk *lpc18xx_cgu_register_pll(struct lpc18xx_cgu_pll_clk *clk,
+					    void __iomem *base)
+{
+	const char *name = clk_src_names[clk->clk_id];
+	const char *parents[CLK_SRC_MAX];
+
+	clk->pll.reg  = base;
+	clk->mux.reg  = base + clk->reg_offset + LPC18XX_CGU_PLL_CTRL_OFFSET;
+	clk->gate.reg = base + clk->reg_offset + LPC18XX_CGU_PLL_CTRL_OFFSET;
+
+	lpc18xx_fill_parent_names(parents, clk->mux.table, clk->n_parents);
+
+	return clk_register_composite(NULL, name, parents, clk->n_parents,
+				      &clk->mux.hw, &clk_mux_ops,
+				      &clk->pll.hw, clk->pll_ops,
+				      &clk->gate.hw, &clk_gate_ops, 0);
+}
+
+static void __init lpc18xx_cgu_register_source_clks(void __iomem *base,
 						    struct device_node *np)
 {
-	const char *parent_name[CLK_SRC_MAX];
+	const char *parents[CLK_SRC_MAX];
 	struct clk *clk;
 	int i;
 
 	/* Register the internal 12 MHz RC oscillator (IRC) */
 	clk = clk_register_fixed_rate(NULL, clk_src_names[CLK_SRC_IRC],
 				      NULL, CLK_IS_ROOT, 12000000);
+	if (IS_ERR(clk))
+		pr_warn("%s: failed to register irc clk\n", __func__);
 
 	/* Register crystal oscillator controlller */
-	parent_name[0] = of_clk_get_parent_name(np, 0);
-	clk = clk_register_gate(NULL, clk_src_names[CLK_SRC_OSC], parent_name[0],
+	parents[0] = of_clk_get_parent_name(np, 0);
+	clk = clk_register_gate(NULL, clk_src_names[CLK_SRC_OSC], parents[0],
 				0, base + LPC18XX_CGU_XTAL_OSC_CTRL,
 				0, CLK_GATE_SET_TO_DISABLE, NULL);
+	if (IS_ERR(clk))
+		pr_warn("%s: failed to register osc clk\n", __func__);
 
-	/* Register PLL0 for USB */
-	lpc18xx_fill_parent_names(parent_name, clk_pll_muxes[0].table,
-				  clk_pll_muxes[0].table_size);
-	clk_pll_muxes[0].reg = LPC18XX_CGU_PLL0USB_CTRL + base;
-	clk_pll_gates[0].reg = LPC18XX_CGU_PLL0USB_CTRL + base;
-	clk_pll_gates[0].flags = CLK_GATE_SET_TO_DISABLE;
-	clk_lpc_plls[0].reg = base;
-	clk = clk_register_composite(NULL, clk_src_names[CLK_SRC_PLL0USB],
-				     parent_name, clk_pll_muxes[0].table_size,
-				     &clk_pll_muxes[0].hw, &clk_mux_ops,
-				     &clk_lpc_plls[0].hw,  &clk_lpc_pll0_usb_ops,
-				     &clk_pll_gates[0].hw, &clk_gate_ops, 0);
+	/* Register all PLLs */
+	for (i = 0; i < ARRAY_SIZE(lpc18xx_cgu_src_clk_plls); i++) {
+		clk = lpc18xx_cgu_register_pll(&lpc18xx_cgu_src_clk_plls[i],
+						   base);
+		if (IS_ERR(clk))
+			pr_warn("%s: failed to register pll (%d)\n", __func__, i);
+	}
 
-	/* Register PLL0 for audio */
-	lpc18xx_fill_parent_names(parent_name, clk_pll_muxes[1].table,
-				  clk_pll_muxes[1].table_size);
-	clk_pll_muxes[1].reg = LPC18XX_CGU_PLL0AUDIO_CTRL + base;
-	clk_pll_gates[1].reg = LPC18XX_CGU_PLL0AUDIO_CTRL + base;
-	clk_pll_gates[1].flags = CLK_GATE_SET_TO_DISABLE;
-	clk_lpc_plls[1].reg = base;
-	clk = clk_register_composite(NULL, clk_src_names[CLK_SRC_PLL0AUDIO],
-				     parent_name, clk_pll_muxes[1].table_size,
-				     &clk_pll_muxes[1].hw, &clk_mux_ops,
-				     NULL,  NULL,
-				     &clk_pll_gates[1].hw, &clk_gate_ops, 0);
-
-	/* Register main PLL1 */
-	lpc18xx_fill_parent_names(parent_name, clk_pll_muxes[2].table,
-				  clk_pll_muxes[2].table_size);
-	clk_pll_muxes[2].reg = LPC18XX_CGU_PLL1_CTRL + base;
-	clk_pll_gates[2].reg = LPC18XX_CGU_PLL1_CTRL + base;
-	clk_pll_gates[2].flags = CLK_GATE_SET_TO_DISABLE;
-	clk_lpc_plls[2].reg = base;
-	clk = clk_register_composite(NULL, clk_src_names[CLK_SRC_PLL1],
-				     parent_name, clk_pll_muxes[2].table_size,
-				     &clk_pll_muxes[2].hw, &clk_mux_ops,
-				     &clk_lpc_plls[2].hw,  &clk_lpc_pll1_ops,
-				     &clk_pll_gates[2].hw, &clk_gate_ops, 0);
-
-	/* Register dividers A-E */
-	for (i = 0; i < LPC18XX_CGU_DIVIDERS_NUM; i++) {
-		lpc18xx_fill_parent_names(parent_name, clk_idiv_muxes[i].table,
-					  clk_idiv_muxes[i].table_size);
-
-		clk_idiv_divs[i].reg = LPC18XX_CGU_IDIV_CTRL(i) + base;
-		clk_idiv_gates[i].reg = LPC18XX_CGU_IDIV_CTRL(i) + base;
-		clk_idiv_gates[i].flags = CLK_GATE_SET_TO_DISABLE;
-		clk_idiv_muxes[i].reg = LPC18XX_CGU_IDIV_CTRL(i) + base;
-		clk_idiv_muxes[i].mask = 0x1f;
-		clk_idiv_muxes[i].shift = 24;
-
-		clk = clk_register_composite(NULL, clk_src_names[CLK_SRC_IDIVA + i],
-					     parent_name, clk_idiv_muxes[i].table_size,
-					     &clk_idiv_muxes[i].hw, &clk_mux_ops,
-					     &clk_idiv_divs[i].hw,  &clk_divider_ops,
-					     &clk_idiv_gates[i].hw, &clk_gate_ops, 0);
+	/* Register all clock dividers A-E */
+	for (i = 0; i < ARRAY_SIZE(lpc18xx_cgu_src_clk_divs); i++) {
+		clk = lpc18xx_cgu_register_div(&lpc18xx_cgu_src_clk_divs[i],
+					       base, i);
+		if (IS_ERR(clk))
+			pr_warn("%s: failed to register div %d\n", __func__, i);
 	}
 }
 
@@ -493,44 +582,13 @@ static struct clk_onecell_data clk_base_data = {
 
 static void __init lpc18xx_cgu_register_base_clks(void __iomem *base)
 {
-	const char *parent_name[CLK_SRC_MAX];
 	int i;
 
-	/* Register base safe clk as a fixed clk since parent is always IRC */
-	clk_base[BASE_SAFE_CLK] =
-		clk_register_fixed_rate(NULL, base_clk_names[BASE_SAFE_CLK],
-					clk_src_names[CLK_SRC_IRC], 0, 12000000);
-
-	/* Register base USB0 clk as a gate since parent is always PLL0 USB */
-	clk_base[BASE_USB0_CLK] =
-		clk_register_gate(NULL, base_clk_names[BASE_USB0_CLK],
-				  clk_src_names[CLK_SRC_PLL0USB], 0,
-				  LPC18XX_CGU_BASE_CLK(BASE_USB0_CLK) + base,
-				  0, CLK_GATE_SET_TO_DISABLE, NULL);
-
-	/* Register all other base clks with gate and mux */
-	for (i = BASE_PERIPH_CLK; i < BASE_CLK_MAX; i++) {
-
-		if (base_clk_names[i] == NULL) {
-			clk_base[i] = ERR_PTR(-ENOENT);
-			continue;
-		}
-
-		lpc18xx_fill_parent_names(parent_name, clk_base_muxes[i].table,
-					  clk_base_muxes[i].table_size);
-
-		clk_base_gates[i].reg = LPC18XX_CGU_BASE_CLK(i) + base;
-		clk_base_gates[i].flags = CLK_GATE_SET_TO_DISABLE;
-		clk_base_muxes[i].reg = LPC18XX_CGU_BASE_CLK(i) + base;
-		clk_base_muxes[i].mask = 0x1f;
-		clk_base_muxes[i].shift = 24;
-
-		clk_base[i] =
-			clk_register_composite(NULL, base_clk_names[i],
-					       parent_name, clk_base_muxes[i].table_size,
-					       &clk_base_muxes[i].hw, &clk_mux_ops,
-					       NULL,  NULL,
-					       &clk_base_gates[i].hw, &clk_gate_ops, 0);
+	for (i = BASE_SAFE_CLK; i < BASE_CLK_MAX; i++) {
+		clk_base[i] = lpc18xx_register_base_clk(&lpc18xx_cgu_base_clks[i],
+							base, i);
+		if (IS_ERR(clk_base[i]) && PTR_ERR(clk_base[i]) != -ENOENT)
+			pr_warn("%s: register base clk %d failed\n", __func__, i);
 	}
 }
 
@@ -538,7 +596,7 @@ static void __init lpc18xx_cgu_init(struct device_node *np)
 {
 	void __iomem *base;
 	const char *name;
-	int ret, i;
+	int i, ret;
 	u32 idx;
 
 	base = of_iomap(np, 0);
@@ -559,10 +617,10 @@ static void __init lpc18xx_cgu_init(struct device_node *np)
 			break;
 
 		if (idx < BASE_CLK_MAX)
-			base_clk_names[idx] = name;
+			clk_base_names[idx] = name;
 	}
 
-	lpc18xx_cgu_register_clk_sources(base, np);
+	lpc18xx_cgu_register_source_clks(base, np);
 	lpc18xx_cgu_register_base_clks(base);
 
 	of_clk_add_provider(np, of_clk_src_onecell_get, &clk_base_data);
