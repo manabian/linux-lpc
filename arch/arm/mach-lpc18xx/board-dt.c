@@ -8,17 +8,15 @@
  * warranty of any kind, whether express or implied.
  */
 
-#include <linux/kernel.h>
-
-#include <asm/v7m.h>
 #include <asm/mach/arch.h>
 
 static const char *const lpc18xx_43xx_compat[] __initconst = {
-	"ea,lpc4357-developers-kit",
-	"hitex,lpc4350-eval-board",
+	"nxp,lpc1850",
+	"nxp,lpc4350",
+	"nxp,lpc4370",
 	NULL
 };
 
-DT_MACHINE_START(LPC18XXDT, "NXP LPC18xx/43xx (Device Tree Support)")
+DT_MACHINE_START(LPC18XXDT, "NXP LPC18xx/43xx (Device Tree)")
 	.dt_compat = lpc18xx_43xx_compat,
 MACHINE_END
