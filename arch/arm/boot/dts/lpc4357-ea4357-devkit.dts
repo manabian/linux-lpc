@@ -19,7 +19,7 @@
 #include "dt-bindings/gpio/gpio.h"
 
 / {
-	model = "Embedded Artist LPC4357 Developer's Kit";
+	model = "Embedded Artists' LPC4357 Developer's Kit";
 	compatible = "ea,lpc4357-developers-kit", "nxp,lpc4357", "nxp,lpc4350";
 
 	chosen {
