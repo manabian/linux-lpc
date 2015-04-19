@@ -19,6 +19,13 @@
 	model = "Hitex LPC4350 Evaluation Board";
 	compatible = "hitex,lpc4350-eval-board", "nxp,lpc4350";
 
+	aliases {
+		serial0 = &uart0;
+		serial1 = &uart1;
+		serial2 = &uart2;
+		serial3 = &uart3;
+	};
+
 	chosen {
 		stdout-path = &uart0;
 	};
