@@ -68,6 +68,16 @@ config DA8XX_REMOTEPROC
 	  It's safe to say n here if you're not interested in multimedia
 	  offloading.
 
+config LPC43XX_REMOTEPROC
+	tristate "LPC43xx remoteproc support"
+	depends on ARCH_LPC18XX || COMPILE_TEST
+	depends on ARM && OF && HAS_IOMEM
+	select REMOTEPROC
+	select RPMSG
+	help
+	  Say y or m here to support the Cortex-M0 cores on NXP LPC43xx
+	  SoCs.
+
 config QCOM_ADSP_PIL
 	tristate "Qualcomm ADSP Peripheral Image Loader"
 	depends on OF && ARCH_QCOM
