@@ -35,6 +35,8 @@ enum gpiod_flags {
 #ifdef CONFIG_GPIOLIB
 
 /* Acquire and dispose GPIOs */
+int gpiod_request(struct gpio_desc *desc, const char *label);
+
 struct gpio_desc *__must_check __gpiod_get(struct device *dev,
 					 const char *con_id,
 					 enum gpiod_flags flags);

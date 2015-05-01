@@ -841,6 +841,7 @@ done:
 
 	return status;
 }
+EXPORT_SYMBOL_GPL(gpiod_request);
 
 static bool __gpiod_free(struct gpio_desc *desc)
 {

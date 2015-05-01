@@ -85,7 +85,6 @@ struct gpio_desc {
 	const char		*label;
 };
 
-int gpiod_request(struct gpio_desc *desc, const char *label);
 void gpiod_free(struct gpio_desc *desc);
 
 /*
