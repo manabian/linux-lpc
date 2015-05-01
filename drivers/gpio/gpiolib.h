@@ -58,8 +58,6 @@ acpi_get_gpiod_by_index(struct acpi_device *adev, const char *propname,
 struct gpio_desc *of_get_named_gpiod_flags(struct device_node *np,
 		   const char *list_name, int index, enum of_gpio_flags *flags);
 
-struct gpio_desc *gpiochip_get_desc(struct gpio_chip *chip, u16 hwnum);
-
 extern struct spinlock gpio_lock;
 extern struct list_head gpio_chips;
 

@@ -95,6 +95,7 @@ struct gpio_desc *gpiochip_get_desc(struct gpio_chip *chip,
 
 	return &chip->desc[hwnum];
 }
+EXPORT_SYMBOL_GPL(gpiochip_get_desc);
 
 /**
  * Convert a GPIO descriptor to the integer namespace.

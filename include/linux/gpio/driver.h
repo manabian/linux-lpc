@@ -157,6 +157,7 @@ int gpiochip_lock_as_irq(struct gpio_chip *chip, unsigned int offset);
 void gpiochip_unlock_as_irq(struct gpio_chip *chip, unsigned int offset);
 
 struct gpio_chip *gpiod_to_chip(const struct gpio_desc *desc);
+struct gpio_desc *gpiochip_get_desc(struct gpio_chip *chip, u16 hwnum);
 
 #ifdef CONFIG_GPIOLIB_IRQCHIP
 
