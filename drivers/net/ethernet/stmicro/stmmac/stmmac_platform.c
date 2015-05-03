@@ -129,11 +129,12 @@ static int stmmac_probe_config_dt(struct platform_device *pdev,
 	struct device_node *np = pdev->dev.of_node;
 	struct stmmac_dma_cfg *dma_cfg;
 	const struct of_device_id *device;
+	struct device *dev = &pdev->dev;
 
 	if (!np)
 		return -ENODEV;
 
-	device = of_match_device(stmmac_dt_ids, &pdev->dev);
+	device = of_match_device(dev->driver->of_match_table, dev);
 	if (!device)
 		return -ENODEV;
 
@@ -264,7 +265,7 @@ static int stmmac_probe_config_dt(struct platform_device *pdev,
  * the necessary platform resources, invoke custom helper (if required) and
  * invoke the main probe function.
  */
-static int stmmac_pltfr_probe(struct platform_device *pdev)
+int stmmac_pltfr_probe(struct platform_device *pdev)
 {
 	int ret = 0;
 	struct resource *res;
@@ -370,6 +371,7 @@ static int stmmac_pltfr_probe(struct platform_device *pdev)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(stmmac_pltfr_probe);
 
 /**
  * stmmac_pltfr_remove
@@ -377,7 +379,7 @@ static int stmmac_pltfr_probe(struct platform_device *pdev)
  * Description: this function calls the main to free the net resources
  * and calls the platforms hook and release the resources (e.g. mem).
  */
-static int stmmac_pltfr_remove(struct platform_device *pdev)
+int stmmac_pltfr_remove(struct platform_device *pdev)
 {
 	struct net_device *ndev = platform_get_drvdata(pdev);
 	struct stmmac_priv *priv = netdev_priv(ndev);
@@ -391,6 +393,7 @@ static int stmmac_pltfr_remove(struct platform_device *pdev)
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(stmmac_pltfr_remove);
 
 #ifdef CONFIG_PM_SLEEP
 /**
@@ -434,8 +437,9 @@ static int stmmac_pltfr_resume(struct device *dev)
 }
 #endif /* CONFIG_PM_SLEEP */
 
-static SIMPLE_DEV_PM_OPS(stmmac_pltfr_pm_ops,
-			 stmmac_pltfr_suspend, stmmac_pltfr_resume);
+SIMPLE_DEV_PM_OPS(stmmac_pltfr_pm_ops, stmmac_pltfr_suspend,
+				       stmmac_pltfr_resume);
+EXPORT_SYMBOL_GPL(stmmac_pltfr_pm_ops);
 
 static struct platform_driver stmmac_pltfr_driver = {
 	.probe = stmmac_pltfr_probe,
