@@ -45,7 +45,7 @@
 		compatible = "gpio-keys";
 		pinctrl-names = "default";
 		pinctrl-0 = <&gpio_joystick_pins>;
-		interrupt-parent = <&gpio_group0_int>;
+		interrupt-parent = <&gpio_int>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 		autorepeat;
@@ -53,14 +53,14 @@
 		button@0 {
 			label = "joy_enter";
 			linux,code = <KEY_ENTER>;
-			interrupts = <LPC_GPIO(4,8) IRQ_TYPE_EDGE_FALLING>;
+			interrupts = <4 IRQ_TYPE_EDGE_FALLING>;
 		};
-
 		button@1 {
 			label = "joy_left";
 			linux,code = <KEY_LEFT>;
-			interrupts = <LPC_GPIO(4,9) IRQ_TYPE_EDGE_FALLING>;
+			interrupts = <3 IRQ_TYPE_EDGE_FALLING>;
 		};
+/*
 
 		button@2 {
 			label = "joy_up";
@@ -79,6 +79,7 @@
 			linux,code = <KEY_DOWN>;
 			interrupts = <LPC_GPIO(4,13) IRQ_TYPE_EDGE_FALLING>;
 		};
+*/
 	};
 
 	leds_mmio {
@@ -315,10 +316,27 @@
 	};
 
 	gpio_joystick_pins: gpio-joystick-pins {
+/*
 		gpio_joystick_cfg {
 			pins =	"p9_0", "p9_1",
 				"pa_1", "pa_2", "pa_3";
 			function = "gpio";
+			input-enable;
+			bias-disable;
+		};
+*/
+		gpio_joystick_cfg {
+			pins = "pa_1";
+			function = "gpio";
+			gpio-pin-interrupt = <4>;
+			input-enable;
+			bias-disable;
+		};
+
+		gpio_joystick_cfg_2 {
+			pins = "pa_2";
+			function = "gpio";
+			gpio-pin-interrupt = <3>;
 			input-enable;
 			bias-disable;
 		};
