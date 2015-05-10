@@ -34,6 +34,8 @@ static void *lpc18xx_dwmac_setup(struct platform_device *pdev)
 {
 	struct lpc18xx_dwmac_priv_data *dwmac;
 
+	pr_info("%s: FOO\n", __func__);
+
 	dwmac = devm_kzalloc(&pdev->dev, sizeof(*dwmac), GFP_KERNEL);
 	if (!dwmac)
 		return ERR_PTR(-ENOMEM);
@@ -55,6 +57,8 @@ static int lpc18xx_dwmac_init(struct platform_device *pdev, void *priv)
 {
 	struct lpc18xx_dwmac_priv_data *dwmac = priv;
 	u8 ethmode;
+
+	pr_info("%s: BAR\n", __func__);
 
 	if (dwmac->interface == PHY_INTERFACE_MODE_MII) {
 		ethmode = LPC18XX_CREG_CREG6_ETHMODE_MII;
