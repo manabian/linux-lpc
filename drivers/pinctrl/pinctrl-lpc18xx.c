@@ -37,6 +37,8 @@
 #define LPC18XX_SCU_PIN_EHD_MASK	0x300
 #define LPC18XX_SCU_PIN_EHD_POS		8
 
+#define LPC18XX_SCU_USB1_EPD		BIT(2)
+
 #define LPC18XX_SCU_I2C0_EFP		BIT(0)
 #define LPC18XX_SCU_I2C0_EHD		BIT(2)
 #define LPC18XX_SCU_I2C0_EZI		BIT(3)
@@ -636,8 +638,24 @@ static const struct pin_config_item lpc18xx_conf_items[ARRAY_SIZE(lpc18xx_params
 
 static int lpc18xx_pconf_get_usb1(enum pin_config_param param, int *arg, u32 reg)
 {
-	/* TODO */
-	return -ENOTSUPP;
+	switch (param) {
+	case PIN_CONFIG_BIAS_DISABLE:
+		if (reg & LPC18XX_SCU_USB1_EPD)
+			return -EINVAL;
+		break;
+
+	case PIN_CONFIG_BIAS_PULL_DOWN:
+		if (reg & LPC18XX_SCU_USB1_EPD)
+			*arg = 1;
+		else
+			return -EINVAL;
+		break;
+
+	default:
+		return -ENOTSUPP;
+	}
+
+	return 0;
 }
 
 static int lpc18xx_pconf_get_i2c0(enum pin_config_param param, int *arg, u32 reg,
@@ -868,8 +886,21 @@ static int lpc18xx_pconf_set_usb1(struct pinctrl_dev *pctldev,
 				  enum pin_config_param param,
 				  u16 param_val, u32 *reg)
 {
-	/* TODO */
-	return -ENOTSUPP;
+	switch (param) {
+	case PIN_CONFIG_BIAS_DISABLE:
+		*reg &= ~LPC18XX_SCU_USB1_EPD;
+		break;
+
+	case PIN_CONFIG_BIAS_PULL_DOWN:
+		*reg |= LPC18XX_SCU_USB1_EPD;
+		break;
+
+	default:
+		dev_err(pctldev->dev, "Property not supported\n");
+		return -ENOTSUPP;
+	}
+
+	return 0;
 }
 
 static int lpc18xx_pconf_set_i2c0(struct pinctrl_dev *pctldev,
