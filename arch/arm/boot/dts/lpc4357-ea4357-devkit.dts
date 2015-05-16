@@ -422,6 +422,20 @@
 			bias-pull-down;
 		};
 	};
+
+	usb0_pins: usb0-pins {
+		usb0_pwr_enable {
+			pins = "p2_3";
+			function = "usb0";
+		};
+
+		usb0_pwr_fault {
+			pins = "p8_0";
+			function = "usb0";
+			bias-disable;
+			input-enable;
+		};
+	};
 };
 
 &i2c0 {
@@ -578,5 +592,7 @@
 };
 
 &usb0 {
-       status = "okay";
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&usb0_pins>;
 };
