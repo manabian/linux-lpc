@@ -192,7 +192,7 @@ static const struct clk_ops lpc18xx_ccu_gate_ops = {
 };
 
 static void lpc18xx_ccu_register_branch_gate_div(struct lpc18xx_clk_branch *branch,
-						 void __iomem *base,
+						 void __iomem *reg_base,
 						 const char *parent)
 {
 	const struct clk_ops *div_ops = NULL;
@@ -204,7 +204,7 @@ static void lpc18xx_ccu_register_branch_gate_div(struct lpc18xx_clk_branch *bran
 		if (!div)
 			return;
 
-		div->reg = branch->offset + base;
+		div->reg = branch->offset + reg_base;
 		div->flags = CLK_DIVIDER_READ_ONLY;
 		div->shift = 27;
 		div->width = 1;
@@ -213,7 +213,7 @@ static void lpc18xx_ccu_register_branch_gate_div(struct lpc18xx_clk_branch *bran
 		div_ops = &clk_divider_ops;
 	}
 
-	branch->gate.reg = branch->offset + base;
+	branch->gate.reg = branch->offset + reg_base;
 	branch->gate.bit_idx = 0;
 
 	branch->clk = clk_register_composite(NULL, branch->name, &parent, 1,
@@ -236,7 +236,8 @@ static void lpc18xx_ccu_register_branch_gate_div(struct lpc18xx_clk_branch *bran
 	}
 }
 
-static void lpc18xx_ccu_register_branch_clks(void __iomem *base, int base_clk_id,
+static void lpc18xx_ccu_register_branch_clks(void __iomem *reg_base,
+					     int base_clk_id,
 					     const char *parent)
 {
 	int i;
@@ -245,7 +246,7 @@ static void lpc18xx_ccu_register_branch_clks(void __iomem *base, int base_clk_id
 		if (clk_branches[i].base_id != base_clk_id)
 			continue;
 
-		lpc18xx_ccu_register_branch_gate_div(&clk_branches[i], base,
+		lpc18xx_ccu_register_branch_gate_div(&clk_branches[i], reg_base,
 						     parent);
 
 		if (clk_branches[i].flags & CCU_BRANCH_IS_BUS)
@@ -257,13 +258,13 @@ static void __init lpc18xx_ccu_init(struct device_node *np)
 {
 	struct lpc18xx_branch_clk_data *clk_data;
 	int num_base_ids, *base_ids;
-	void __iomem *base;
+	void __iomem *reg_base;
 	const char *parent;
 	int base_clk_id;
 	int i;
 
-	base = of_iomap(np, 0);
-	if (!base) {
+	reg_base = of_iomap(np, 0);
+	if (!reg_base) {
 		pr_warn("%s: failed to map address range\n", __func__);
 		return;
 	}
@@ -294,7 +295,8 @@ static void __init lpc18xx_ccu_init(struct device_node *np)
 		}
 
 		clk_data->base_ids[i] = base_clk_id;
-		lpc18xx_ccu_register_branch_clks(base, base_clk_id, parent);
+		lpc18xx_ccu_register_branch_clks(reg_base, base_clk_id,
+						 parent);
 	}
 
 	of_clk_add_provider(np, lpc18xx_ccu_branch_clk_get, clk_data);
