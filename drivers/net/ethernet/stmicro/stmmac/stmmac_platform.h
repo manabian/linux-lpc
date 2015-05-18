@@ -19,6 +19,14 @@
 #ifndef __STMMAC_PLATFORM_H__
 #define __STMMAC_PLATFORM_H__
 
+#include "stmmac.h"
+
+int stmmac_pltfr_get_resources(struct platform_device *pdev,
+			       struct stmmac_resources *r);
+int stmmac_probe_config_dt(struct platform_device *pdev,
+			   struct plat_stmmacenet_data *plat,
+			   const char **mac);
+
 int stmmac_pltfr_probe(struct platform_device *pdev);
 int stmmac_pltfr_remove(struct platform_device *pdev);
 extern const struct dev_pm_ops stmmac_pltfr_pm_ops;
