@@ -25,60 +25,51 @@
 # define LPC18XX_CREG_CREG6_ETHMODE_MII		0x0
 # define LPC18XX_CREG_CREG6_ETHMODE_RMII	0x4
 
-struct lpc18xx_dwmac_priv_data {
-	struct regmap *reg;
-	int interface;
-};
-
-static void *lpc18xx_dwmac_setup(struct platform_device *pdev)
+static int lpc18xx_dwmac_probe(struct platform_device *pdev)
 {
-	struct lpc18xx_dwmac_priv_data *dwmac;
+	struct plat_stmmacenet_data *plat_dat = NULL;
+	struct stmmac_resources stmmac_res;
+	struct regmap *reg;
+	int phy_mode;
+	u8 ethmode;
+	int ret;
 
-	pr_info("%s: FOO\n", __func__);
+	memset(&stmmac_res, 0, sizeof(stmmac_res));
+	ret = stmmac_pltfr_get_resources(pdev, &stmmac_res);
+	if (ret)
+		return ret;
 
-	dwmac = devm_kzalloc(&pdev->dev, sizeof(*dwmac), GFP_KERNEL);
-	if (!dwmac)
-		return ERR_PTR(-ENOMEM);
+	phy_mode = of_get_phy_mode(pdev->dev.of_node);
+	if (phy_mode < 0)
+		return phy_mode;
 
-	dwmac->interface = of_get_phy_mode(pdev->dev.of_node);
-	if (dwmac->interface < 0)
-		return ERR_PTR(dwmac->interface);
-
-	dwmac->reg = syscon_regmap_lookup_by_compatible("nxp,lpc1850-creg");
-	if (IS_ERR(dwmac->reg)) {
-		dev_err(&pdev->dev, "Syscon lookup failed\n");
-		return dwmac->reg;
+	reg = syscon_regmap_lookup_by_compatible("nxp,lpc1850-creg");
+	if (IS_ERR(reg)) {
+		dev_err(&pdev->dev, "syscon lookup failed\n");
+		return PTR_ERR(reg);
 	}
 
-	return dwmac;
-}
-
-static int lpc18xx_dwmac_init(struct platform_device *pdev, void *priv)
-{
-	struct lpc18xx_dwmac_priv_data *dwmac = priv;
-	u8 ethmode;
-
-	pr_info("%s: BAR\n", __func__);
-
-	if (dwmac->interface == PHY_INTERFACE_MODE_MII) {
+	if (phy_mode == PHY_INTERFACE_MODE_MII) {
 		ethmode = LPC18XX_CREG_CREG6_ETHMODE_MII;
-	} else if (dwmac->interface == PHY_INTERFACE_MODE_RMII) {
+	} else if (phy_mode == PHY_INTERFACE_MODE_RMII) {
 		ethmode = LPC18XX_CREG_CREG6_ETHMODE_RMII;
 	} else {
-		dev_err(&pdev->dev, "Only MII and RMII mode supported\n");
+		dev_err(&pdev->dev, "only MII and RMII mode supported\n");
 		return -EINVAL;
 	}
 
-	regmap_update_bits(dwmac->reg, LPC18XX_CREG_CREG6,
+	regmap_update_bits(reg, LPC18XX_CREG_CREG6,
 			   LPC18XX_CREG_CREG6_ETHMODE_MASK, ethmode);
 
-	return 0;
+	ret = stmmac_probe_config_dt(pdev, plat_dat, &stmmac_res.mac);
+	if (ret)
+		return ret;
+
+	return stmmac_dvr_probe(&pdev->dev, plat_dat, &stmmac_res);
 }
 
 static const struct stmmac_of_data lpc18xx_dwmac_data = {
 	.has_gmac = 1,
-	.setup = lpc18xx_dwmac_setup,
-	.init = lpc18xx_dwmac_init,
 };
 
 static const struct of_device_id lpc18xx_dwmac_match[] = {
@@ -88,7 +79,7 @@ static const struct of_device_id lpc18xx_dwmac_match[] = {
 MODULE_DEVICE_TABLE(of, lpc18xx_dwmac_match);
 
 static struct platform_driver lpc18xx_dwmac_driver = {
-	.probe  = stmmac_pltfr_probe,
+	.probe  = lpc18xx_dwmac_probe,
 	.remove = stmmac_pltfr_remove,
 	.driver = {
 		.name           = "lpc18xx-dwmac",
