@@ -111,6 +111,12 @@ static int stmmac_probe_config_dt(struct platform_device *pdev,
 	const struct of_device_id *device;
 	struct device *dev = &pdev->dev;
 
+	if (!plat) {
+		plat = devm_kzalloc(dev, sizeof(*plat), GFP_KERNEL);
+		if (!plat)
+			return -ENOMEM;
+	}
+
 	device = of_match_device(dev->driver->of_match_table, dev);
 	if (device->data) {
 		const struct stmmac_of_data *data = device->data;
@@ -295,14 +301,17 @@ int stmmac_pltfr_probe(struct platform_device *pdev)
 		return ret;
 
 	plat_dat = dev_get_platdata(&pdev->dev);
+	if (pdev->dev.of_node) {
+		ret = stmmac_probe_config_dt(pdev, plat_dat, &stmmac_res.mac);
+		if (ret) {
+			dev_err(&pdev->dev, "main dt probe failed\n");
+			return ret;
+		}
+	}
 
-	if (!plat_dat)
-		plat_dat = devm_kzalloc(&pdev->dev,
-					sizeof(struct plat_stmmacenet_data),
-					GFP_KERNEL);
 	if (!plat_dat) {
-		pr_err("%s: ERROR: no memory", __func__);
-		return  -ENOMEM;
+		dev_err(&pdev->dev, "no platform data provided\n");
+		return  -EINVAL;
 	}
 
 	/* Set default value for multicast hash bins */
@@ -310,14 +319,6 @@ int stmmac_pltfr_probe(struct platform_device *pdev)
 
 	/* Set default value for unicast filter entries */
 	plat_dat->unicast_filter_entries = 1;
-
-	if (pdev->dev.of_node) {
-		ret = stmmac_probe_config_dt(pdev, plat_dat, &stmmac_res.mac);
-		if (ret) {
-			pr_err("%s: main dt probe failed", __func__);
-			return ret;
-		}
-	}
 
 	/* Custom setup (if needed) */
 	if (plat_dat->setup) {
