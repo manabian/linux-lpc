@@ -285,14 +285,15 @@ static void __init lpc18xx_ccu_init(struct device_node *np)
 	clk_data->num_base_ids = num_base_ids;
 
 	for (i = 0; i < num_base_ids; i++) {
-		parent = of_clk_get_parent_name(np, i);
-
-		base_clk_id = of_clk_get_index(np, i);
-		if (base_clk_id < 0 && base_clk_id >= BASE_CLK_MAX) {
-			pr_warn("%s: invalid base clk at idx %d\n", __func__, i);
-			base_ids[i] = -EINVAL;
+		struct clk *clk = of_clk_get(np, i);
+		if (IS_ERR(clk)) {
+			pr_warn("%s: failed to get clock at idx %d\n",
+				__func__, i);
 			continue;
 		}
+
+		parent = __clk_get_name(clk);
+		base_clk_id = of_clk_get_index(np, i);
 
 		clk_data->base_ids[i] = base_clk_id;
 		lpc18xx_ccu_register_branch_clks(reg_base, base_clk_id,
