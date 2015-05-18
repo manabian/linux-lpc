@@ -117,12 +117,6 @@ static int stmmac_probe_config_dt(struct platform_device *pdev,
 			return -ENOMEM;
 	}
 
-	/* Set default value for multicast hash bins */
-	plat->multicast_filter_bins = HASH_TABLE_SIZE;
-
-	/* Set default value for unicast filter entries */
-	plat->unicast_filter_entries = 1;
-
 	device = of_match_device(dev->driver->of_match_table, dev);
 	if (device->data) {
 		const struct stmmac_of_data *data = device->data;
