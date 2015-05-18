@@ -185,29 +185,14 @@
 			status = "disabled";
 		};
 
-		cgu: cgu@40050000 {
+		cgu: clock-controller@40050000 {
 			compatible = "nxp,lpc1850-cgu";
 			reg = <0x40050000 0x1000>;
 			#clock-cells = <1>;
 			clocks = <&xtal>, <&xtal32>, <&enet_rx_clk>, <&enet_tx_clk>, <&gp_clkin>;
-			clock-indices =  <0>,  <1>,  <2>,  <3>,  <4>,  <5>,  <6>,  <7>,
-					 <8>,  <9>, <10>, <11>, <12>, <13>, <14>, <15>,
-					<16>, <17>, <18>, <19>, <20>, <25>, <26>, <27>;
-			clock-output-names = "base_safe_clk",    "base_usb0_clk",
-					     "base_periph_clk",  "base_usb1_clk",
-					     "base_cpu_clk",     "base_spifi_clk",
-					     "base_spi_clk",     "base_phy_rx_clk",
-					     "base_phy_tx_clk",  "base_apb1_clk",
-					     "base_apb3_clk",    "base_lcd_clk",
-					     "base_adchs_clk",   "base_sdio_clk",
-					     "base_ssp0_clk",    "base_ssp1_clk",
-					     "base_uart0_clk",   "base_uart1_clk",
-					     "base_uart2_clk",   "base_uart3_clk",
-					     "base_out_clk",     "base_audio_clk",
-					     "base_cgu_out0_clk","base_cgu_out1_clk";
 		};
 
-		ccu1: ccu@40051000 {
+		ccu1: clock-controller@40051000 {
 			compatible = "nxp,lpc1850-ccu";
 			reg = <0x40051000 0x1000>;
 			#clock-cells = <1>;
@@ -217,7 +202,7 @@
 				 <&cgu BASE_USB1_CLK>,   <&cgu BASE_SPI_CLK>;
 		};
 
-		ccu2: ccu@40052000 {
+		ccu2: clock-controller@40052000 {
 			compatible = "nxp,lpc1850-ccu";
 			reg = <0x40052000 0x1000>;
 			#clock-cells = <1>;
