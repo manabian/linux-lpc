@@ -232,33 +232,21 @@ static int stmmac_probe_config_dt(struct platform_device *pdev,
 }
 #endif /* CONFIG_OF */
 
-/**
- * stmmac_pltfr_probe - platform driver probe.
- * @pdev: platform device pointer
- * Description: platform_device probe function. It is to allocate
- * the necessary platform resources, invoke custom helper (if required) and
- * invoke the main probe function.
- */
-int stmmac_pltfr_probe(struct platform_device *pdev)
+static int stmmac_pltfr_get_resources(struct platform_device *pdev,
+				      struct stmmac_resources *r)
 {
-	struct stmmac_resources stmmac_res;
-	int ret = 0;
 	struct resource *res;
-	struct device *dev = &pdev->dev;
-	struct plat_stmmacenet_data *plat_dat = NULL;
-
-	memset(&stmmac_res, 0, sizeof(stmmac_res));
 
 	/* Get IRQ information early to have an ability to ask for deferred
 	 * probe if needed before we went too far with resource allocation.
 	 */
-	stmmac_res.irq = platform_get_irq_byname(pdev, "macirq");
-	if (stmmac_res.irq < 0) {
-		if (stmmac_res.irq != -EPROBE_DEFER) {
-			dev_err(dev,
+	r->irq = platform_get_irq_byname(pdev, "macirq");
+	if (r->irq < 0) {
+		if (r->irq != -EPROBE_DEFER) {
+			dev_err(&pdev->dev,
 				"MAC IRQ configuration information not found\n");
 		}
-		return stmmac_res.irq;
+		return r->irq;
 	}
 
 	/* On some platforms e.g. SPEAr the wake up irq differs from the mac irq
@@ -268,21 +256,43 @@ int stmmac_pltfr_probe(struct platform_device *pdev)
 	 * In case the wake up interrupt is not passed from the platform
 	 * so the driver will continue to use the mac irq (ndev->irq)
 	 */
-	stmmac_res.wol_irq = platform_get_irq_byname(pdev, "eth_wake_irq");
-	if (stmmac_res.wol_irq < 0) {
-		if (stmmac_res.wol_irq == -EPROBE_DEFER)
+	r->wol_irq = platform_get_irq_byname(pdev, "eth_wake_irq");
+	if (r->wol_irq < 0) {
+		if (r->wol_irq == -EPROBE_DEFER)
 			return -EPROBE_DEFER;
-		stmmac_res.wol_irq = stmmac_res.irq;
+		r->wol_irq = r->irq;
 	}
 
-	stmmac_res.lpi_irq = platform_get_irq_byname(pdev, "eth_lpi");
-	if (stmmac_res.lpi_irq == -EPROBE_DEFER)
+	r->lpi_irq = platform_get_irq_byname(pdev, "eth_lpi");
+	if (r->lpi_irq == -EPROBE_DEFER)
 		return -EPROBE_DEFER;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	stmmac_res.addr = devm_ioremap_resource(dev, res);
-	if (IS_ERR(stmmac_res.addr))
-		return PTR_ERR(stmmac_res.addr);
+	r->addr = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(r->addr))
+		return PTR_ERR(r->addr);
+
+	return 0;
+}
+
+/**
+ * stmmac_pltfr_probe - platform driver probe.
+ * @pdev: platform device pointer
+ * Description: platform_device probe function. It is to allocate
+ * the necessary platform resources, invoke custom helper (if required) and
+ * invoke the main probe function.
+ */
+int stmmac_pltfr_probe(struct platform_device *pdev)
+{
+	struct plat_stmmacenet_data *plat_dat;
+	struct stmmac_resources stmmac_res;
+	int ret;
+
+	memset(&stmmac_res, 0, sizeof(stmmac_res));
+
+	ret = stmmac_pltfr_get_resources(pdev, &stmmac_res);
+	if (ret)
+		return ret;
 
 	plat_dat = dev_get_platdata(&pdev->dev);
 
