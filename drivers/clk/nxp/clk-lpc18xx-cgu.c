@@ -89,7 +89,32 @@ static const char *clk_src_names[CLK_SRC_MAX] = {
 	[CLK_SRC_IDIVE]		= "idive",
 };
 
-static const char *clk_base_names[BASE_CLK_MAX];
+static const char *clk_base_names[BASE_CLK_MAX] = {
+	[BASE_SAFE_CLK]		= "base_safe_clk",
+	[BASE_USB0_CLK]		= "base_usb0_clk",
+	[BASE_PERIPH_CLK]	= "base_periph_clk",
+	[BASE_USB1_CLK]		= "base_usb1_clk",
+	[BASE_CPU_CLK]		= "base_cpu_clk",
+	[BASE_SPIFI_CLK]	= "base_spifi_clk",
+	[BASE_SPI_CLK]		= "base_spi_clk",
+	[BASE_PHY_RX_CLK]	= "base_phy_rx_clk",
+	[BASE_PHY_TX_CLK]	= "base_phy_tx_clk",
+	[BASE_APB1_CLK]		= "base_apb1_clk",
+	[BASE_APB3_CLK]		= "base_apb3_clk",
+	[BASE_LCD_CLK]		= "base_lcd_clk",
+	[BASE_ADCHS_CLK]	= "base_adchs_clk",
+	[BASE_SDIO_CLK]		= "base_sdio_clk",
+	[BASE_SSP0_CLK]		= "base_ssp0_clk",
+	[BASE_SSP1_CLK]		= "base_ssp1_clk",
+	[BASE_UART0_CLK]	= "base_uart0_clk",
+	[BASE_UART1_CLK]	= "base_uart1_clk",
+	[BASE_UART2_CLK]	= "base_uart2_clk",
+	[BASE_UART3_CLK]	= "base_uart3_clk",
+	[BASE_OUT_CLK]		= "base_out_clk",
+	[BASE_AUDIO_CLK]	= "base_audio_clk",
+	[BASE_CGU_OUT0_CLK]	= "base_cgu_out0_clk",
+	[BASE_CGU_OUT1_CLK]	= "base_cgu_out1_clk",
+};
 
 static u32 lpc18xx_cgu_pll0_src_ids[] = {
 	CLK_SRC_OSC32, CLK_SRC_IRC, CLK_SRC_ENET_RX_CLK,
@@ -491,9 +516,9 @@ static struct clk *lpc18xx_cgu_register_div(struct lpc18xx_cgu_src_clk_div *clk,
 
 
 static struct clk *lpc18xx_register_base_clk(struct lpc18xx_cgu_base_clk *clk,
-					     void __iomem *base, int n)
+					     void __iomem *reg_base, int n)
 {
-	void __iomem *reg = base + LPC18XX_CGU_BASE_CLK(n);
+	void __iomem *reg = reg_base + LPC18XX_CGU_BASE_CLK(n);
 	const char *name = clk_base_names[clk->clk_id];
 	const char *parents[CLK_SRC_MAX];
 
@@ -536,8 +561,8 @@ static struct clk *lpc18xx_cgu_register_pll(struct lpc18xx_cgu_pll_clk *clk,
 				      &clk->gate.hw, &clk_gate_ops, 0);
 }
 
-static void __init lpc18xx_cgu_register_source_clks(void __iomem *base,
-						    struct device_node *np)
+static void __init lpc18xx_cgu_register_source_clks(struct device_node *np,
+						    void __iomem *base)
 {
 	const char *parents[CLK_SRC_MAX];
 	struct clk *clk;
@@ -580,13 +605,13 @@ static struct clk_onecell_data clk_base_data = {
 	.clk_num = BASE_CLK_MAX,
 };
 
-static void __init lpc18xx_cgu_register_base_clks(void __iomem *base)
+static void __init lpc18xx_cgu_register_base_clks(void __iomem *reg_base)
 {
 	int i;
 
 	for (i = BASE_SAFE_CLK; i < BASE_CLK_MAX; i++) {
 		clk_base[i] = lpc18xx_register_base_clk(&lpc18xx_cgu_base_clks[i],
-							base, i);
+							reg_base, i);
 		if (IS_ERR(clk_base[i]) && PTR_ERR(clk_base[i]) != -ENOENT)
 			pr_warn("%s: register base clk %d failed\n", __func__, i);
 	}
@@ -594,34 +619,16 @@ static void __init lpc18xx_cgu_register_base_clks(void __iomem *base)
 
 static void __init lpc18xx_cgu_init(struct device_node *np)
 {
-	void __iomem *base;
-	const char *name;
-	int i, ret;
-	u32 idx;
+	void __iomem *reg_base;
 
-	base = of_iomap(np, 0);
-	if (!base) {
+	reg_base = of_iomap(np, 0);
+	if (!reg_base) {
 		pr_warn("%s: failed to map address range\n", __func__);
 		return;
 	}
 
-	/* Get base clk names and ids from DT */
-	for (i = 0; i < BASE_CLK_MAX; i++) {
-		ret = of_property_read_u32_index(np, "clock-indices", i, &idx);
-		if (ret)
-			break;
-
-		ret = of_property_read_string_index(np, "clock-output-names",
-						    i, &name);
-		if (ret)
-			break;
-
-		if (idx < BASE_CLK_MAX)
-			clk_base_names[idx] = name;
-	}
-
-	lpc18xx_cgu_register_source_clks(base, np);
-	lpc18xx_cgu_register_base_clks(base);
+	lpc18xx_cgu_register_source_clks(np, reg_base);
+	lpc18xx_cgu_register_base_clks(reg_base);
 
 	of_clk_add_provider(np, of_clk_src_onecell_get, &clk_base_data);
 }
