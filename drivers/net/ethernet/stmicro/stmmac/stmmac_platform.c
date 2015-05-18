@@ -251,7 +251,6 @@ int stmmac_pltfr_probe(struct platform_device *pdev)
 	int ret = 0;
 	struct resource *res;
 	struct device *dev = &pdev->dev;
-	struct stmmac_priv *priv = NULL;
 	struct plat_stmmacenet_data *plat_dat = NULL;
 
 	memset(&stmmac_res, 0, sizeof(stmmac_res));
@@ -330,15 +329,7 @@ int stmmac_pltfr_probe(struct platform_device *pdev)
 			return ret;
 	}
 
-	priv = stmmac_dvr_probe(&(pdev->dev), plat_dat, &stmmac_res);
-	if (IS_ERR(priv)) {
-		pr_err("%s: main driver probe failed", __func__);
-		return PTR_ERR(priv);
-	}
-
-	pr_debug("STMMAC platform driver registration completed");
-
-	return 0;
+	return stmmac_dvr_probe(&pdev->dev, plat_dat, &stmmac_res);
 }
 EXPORT_SYMBOL_GPL(stmmac_pltfr_probe);
 
