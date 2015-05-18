@@ -287,7 +287,7 @@ static void __init lpc18xx_ccu_init(struct device_node *np)
 	for (i = 0; i < num_base_ids; i++) {
 		parent = of_clk_get_parent_name(np, i);
 
-		base_clk_id = of_clk_get_parent_arg(np, i);
+		base_clk_id = of_clk_get_index(np, i);
 		if (base_clk_id < 0 && base_clk_id >= BASE_CLK_MAX) {
 			pr_warn("%s: invalid base clk at idx %d\n", __func__, i);
 			base_ids[i] = -EINVAL;
