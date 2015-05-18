@@ -626,6 +626,7 @@ struct clk *of_clk_src_simple_get(struct of_phandle_args *clkspec,
 struct clk *of_clk_src_onecell_get(struct of_phandle_args *clkspec, void *data);
 int of_clk_get_parent_count(struct device_node *np);
 const char *of_clk_get_parent_name(struct device_node *np, int index);
+int of_clk_get_index(struct device_node *np, int index);
 
 void of_clk_init(const struct of_device_id *matches);
 

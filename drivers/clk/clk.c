@@ -3007,6 +3007,24 @@ const char *of_clk_get_parent_name(struct device_node *np, int index)
 }
 EXPORT_SYMBOL_GPL(of_clk_get_parent_name);
 
+int of_clk_get_index(struct device_node *np, int index)
+{
+	struct of_phandle_args clkspec;
+	int rc;
+
+	if (index < 0)
+		return -EINVAL;
+
+	rc = of_parse_phandle_with_args(np, "clocks", "#clock-cells", index,
+					&clkspec);
+	if (rc)
+		return -EINVAL;
+
+	of_node_put(clkspec.np);
+	return clkspec.args_count ? clkspec.args[0] : -EINVAL;
+}
+EXPORT_SYMBOL_GPL(of_clk_get_index);
+
 struct clock_provider {
 	of_clk_init_cb_t clk_init_cb;
 	struct device_node *np;
