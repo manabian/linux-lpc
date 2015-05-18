@@ -117,7 +117,7 @@ supported.
 Example board file:
 
 soc {
-	ccu1: ccu@40051000 {
+	ccu1: clock-controller@40051000 {
 		compatible = "nxp,lpc1850-ccu";
 		reg = <0x40051000 0x1000>;
 		#clock-cells = <1>;
@@ -127,7 +127,7 @@ soc {
 			 <&cgu BASE_USB1_CLK>,   <&cgu BASE_SPI_CLK>;
 	};
 
-	ccu2: ccu@40052000 {
+	ccu2: clock-controller@40052000 {
 		compatible = "nxp,lpc1850-ccu";
 		reg = <0x40052000 0x1000>;
 		#clock-cells = <1>;
