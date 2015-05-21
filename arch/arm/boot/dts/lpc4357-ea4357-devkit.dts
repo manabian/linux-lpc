@@ -562,18 +562,22 @@
 };
 
 &spifi {
-	status = "disabled";
+	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&spifi_pins>;
 
 	flash@0 {
-		compatible = "winbond,w25q16";
-		reg = <0>;
-		spi-max-frequency = <100000>;
+		compatible = "spansion,s25fl016k";
 		spi-cpol;
 		spi-cpha;
-		spi-tx-bus-width = <4>;
 		spi-rx-bus-width = <4>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		partition@0 {
+			label = "data";
+			reg = <0 0x200000>;
+		};
 	};
 };
 
