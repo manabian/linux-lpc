@@ -161,6 +161,13 @@ config MTD_SBC_GXX
 	  More info at
 	  <http://www.arcomcontrols.com/products/icp/pc104/processors/SBC_GX1.htm>.
 
+config MTD_LPC18XX
+	tristate "NXP LPC18xx/43xx internal Flash device"
+	depends on ARCH_LPC18XX || COMPILE_TEST
+	depends on OF && NXP_BOOT_ROM
+	help
+	  Enable support for the internal flash on NXP LPC18xx/43xx devices.
+
 config MTD_PXA2XX
 	tristate "CFI Flash device mapped on Intel XScale PXA2xx based boards"
 	depends on (PXA25x || PXA27x) && MTD_CFI_INTELEXT
