@@ -169,6 +169,34 @@
 			status = "disabled";
 		};
 
+		flash_a: flash@4000c000 {
+			compatible = "nxp,lpc1857-flash";
+			reg = <0x4000c000 0x1000>, <0x1a000000 0x80000>;
+			reg-names = "controller", "flash";
+			interrupts = <4>;
+			clocks = <&ccu1 CLK_CPU_FLASHA>;
+			resets = <&rgu 25>;
+			nxp,flash_bank = <0>;
+			nxp,iap = <&boot_rom>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			status = "disabled";
+		};
+
+		flash_b: flash@4000d000 {
+			compatible = "nxp,lpc1857-flash";
+			reg = <0x4000d000 0x1000>, <0x1b000000 0x80000>;
+			reg-names = "controller", "flash";
+			interrupts = <4>;
+			clocks = <&ccu1 CLK_CPU_FLASHB>;
+			resets = <&rgu 29>;
+			nxp,flash_bank = <1>;
+			nxp,iap = <&boot_rom>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			status = "disabled";
+		};
+
 		eeprom: eeprom@4000e000 {
 			compatible = "nxp,lpc1857-eeprom";
 			reg = <0x4000e000 0x1000>, <0x20040000 0x4000>;
