@@ -547,7 +547,7 @@
 };
 
 &flash_a {
-	status = "okay";
+	status = "disable";
 
 	partition@0 {
 		label = "data";
