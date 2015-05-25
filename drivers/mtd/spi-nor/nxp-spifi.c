@@ -150,8 +150,6 @@ static int nxp_spifi_read_reg(struct spi_nor *nor, u8 opcode, u8 *buf, int len)
 	u32 cmd;
 	int ret;
 
-	dev_info(spifi->dev, "%s opcode 0x%02x\n", __func__, opcode);
-
 	ret = nxp_spifi_set_memory_mode_off(spifi);
 	if (ret)
 		return ret;
@@ -162,10 +160,8 @@ static int nxp_spifi_read_reg(struct spi_nor *nor, u8 opcode, u8 *buf, int len)
 	      SPIFI_CMD_FRAMEFORM_OPCODE_ONLY;
 	writel(cmd, spifi->io_base + SPIFI_CMD);
 
-	while (len--) {
+	while (len--)
 		*buf++  = readb(spifi->io_base + SPIFI_DATA);
-		dev_info(spifi->dev, "%s data 0x%02x\n", __func__, *(buf-1));
-	}
 
 	return nxp_spifi_wait_for_cmd(spifi);
 }
@@ -176,8 +172,6 @@ static int nxp_spifi_write_reg(struct spi_nor *nor, u8 opcode, u8 *buf,
 	struct nxp_spifi *spifi = nor->priv;
 	u32 cmd;
 	int ret;
-
-	dev_info(spifi->dev, "%s opcode 0x%02x\n", __func__, opcode);
 
 	ret = nxp_spifi_set_memory_mode_off(spifi);
 	if (ret)
@@ -190,10 +184,8 @@ static int nxp_spifi_write_reg(struct spi_nor *nor, u8 opcode, u8 *buf,
 	      SPIFI_CMD_FRAMEFORM_OPCODE_ONLY;
 	writel(cmd, spifi->io_base + SPIFI_CMD);
 
-	while (len--) {
-		dev_info(spifi->dev, "%s data 0x%02x\n", __func__, *buf);
+	while (len--)
 		writeb(*buf++, spifi->io_base + SPIFI_DATA);
-	}
 
 	return nxp_spifi_wait_for_cmd(spifi);
 }
@@ -203,9 +195,6 @@ static int nxp_spifi_read(struct spi_nor *nor, loff_t from, size_t len,
 {
 	struct nxp_spifi *spifi = nor->priv;
 	int ret;
-
-	dev_info(spifi->dev, "%s: cmd 0x%02x, read from (0x%p + 0x%.8x), len:%d\n",
-		 __func__, nor->read_opcode, spifi->flash_base, (unsigned int)from, len);
 
 	ret = nxp_spifi_set_memory_mode_on(spifi);
 	if (ret)
@@ -223,9 +212,6 @@ static void nxp_spifi_write(struct spi_nor *nor, loff_t to, size_t len,
 	struct nxp_spifi *spifi = nor->priv;
 	u32 cmd;
 	int ret;
-
-	dev_info(spifi->dev, "%s: cmd 0x%02x, write to (0x%p + 0x%.8x), len:%d\n",
-		 __func__, nor->program_opcode, spifi->flash_base, (unsigned int)to, len);
 
 	ret = nxp_spifi_set_memory_mode_off(spifi);
 	if (ret) {
@@ -254,9 +240,6 @@ static int nxp_spifi_erase(struct spi_nor *nor, loff_t offs)
 	struct nxp_spifi *spifi = nor->priv;
 	u32 cmd;
 	int ret;
-
-	dev_info(nor->dev, "%s: %dKiB at %p\n",
-		__func__, nor->mtd->erasesize / 1024, spifi->flash_base + offs);
 
 	ret = nxp_spifi_set_memory_mode_off(spifi);
 	if (ret)
@@ -295,8 +278,6 @@ static int nxp_spifi_setup_memory_cmd(struct nxp_spifi *spifi)
 	spifi->mcmd |= SPIFI_CMD_OPCODE(spifi->nor.read_opcode) |
 		       SPIFI_CMD_INTLEN(spifi->nor.read_dummy / 8) |
 		       SPIFI_CMD_FRAMEFORM(spifi->nor.addr_width + 1);
-
-	dev_info(spifi->dev, "mcmd = 0x%08x\n", spifi->mcmd);
 
 	return 0;
 }
