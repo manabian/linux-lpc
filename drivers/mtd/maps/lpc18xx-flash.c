@@ -17,6 +17,7 @@
 #include <linux/mtd/partitions.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
+#include <linux/sizes.h>
 
 struct lpc18xx_flash {
 	struct clk *clk;
@@ -24,7 +25,209 @@ struct lpc18xx_flash {
 	void __iomem *io_base;
 	void __iomem *flash_base;
 	struct mtd_info mtd;
+
+	/* For boot-rom */
+	void __iomem *boot_rom;
+	void (*iap_entry)(u32 *, u32 *);
 };
+
+/* Temp boot-rom stuff */
+static struct resource lpc18xx_boot_rom = {
+	.start	= 0x10400000,
+	.end	= 0x1040ffff,
+	.flags	= IORESOURCE_MEM,
+};
+
+#define LPC18XX_ROM_TABLE	0x100
+#define LPC18XX_IAP_TABLE	(LPC18XX_ROM_TABLE + 0x0)
+
+#define IAP_CMD_MAX_LEN		6
+#define IAP_RES_MAX_LEN		5
+
+/* IAP commands */
+#define IAP_INIT		49
+#define IAP_PREPARE		50
+#define IAP_COPY_TO_FLASH	51
+#define IAP_ERASE_SECTOR	52
+#define IAP_BLANK_CHECK		53
+#define IAP_READ_PART_ID	54
+#define IAP_BOOT_CODE_VER	55
+#define IAP_READ_SERIAL_NO	58
+#define IAP_ERASE_PAGE		59
+
+/* IAP return codes */
+#define IAP_CMD_SUCCESS			0x00
+#define IAP_SRC_ADDR_ERROR		0x02
+#define IAP_DST_ADDR_ERROR		0x03
+#define IAP_SRC_ADDR_NOT_MAPPED		0x04
+#define IAP_DST_ADDR_NOT_MAPPED		0x05
+#define IAP_COUNT_ERROR			0x06
+#define IAP_INVALID_SECTOR		0x07
+#define IAP_SECTOR_NOT_PREPARED		0x09
+#define IAP_BUSY			0x0b
+#define IAP_INVALID_FLASH_UNIT		0x14
+
+
+static void lpc18xx_play_with_rom(struct lpc18xx_flash *data)
+{
+	u32 command[IAP_CMD_MAX_LEN];
+	u32 result[IAP_RES_MAX_LEN];
+	u32 ptr;
+
+	ptr = readl(data->boot_rom + LPC18XX_IAP_TABLE);
+	pr_info("%s: ptr = 0x%08x\n", __func__, ptr);
+
+	data->iap_entry = (void *)ptr;
+
+	command[0] = IAP_READ_PART_ID;
+	data->iap_entry(command, result);
+
+	pr_info("%s: ret: 0x%02x, res: 0x%08x, 0x%08x\n", __func__,
+		result[0], result[1], result[2]);
+}
+
+static int nxp_rom_iap_read_id(struct lpc18xx_flash *data, u32 *id)
+{
+	u32 command[IAP_CMD_MAX_LEN];
+	u32 result[IAP_RES_MAX_LEN];
+
+	command[0] = IAP_READ_PART_ID;
+	data->iap_entry(command, result);
+
+	id[0] = result[1];
+	id[1] = result[2];
+
+	return 0;
+}
+
+static int nxp_rom_iap_init(struct lpc18xx_flash *data)
+{
+	u32 command[IAP_CMD_MAX_LEN];
+	u32 result[IAP_RES_MAX_LEN];
+
+	command[0] = IAP_INIT;
+	data->iap_entry(command, result);
+
+	return 0;
+}
+
+static int nxp_rom_iap_prepare_sectors(struct lpc18xx_flash *data,
+				       u32 start_sector, u32 stop_sector,
+				       u32 flash_bank)
+{
+	u32 command[IAP_CMD_MAX_LEN];
+	u32 result[IAP_RES_MAX_LEN];
+
+	command[0] = IAP_PREPARE;
+	command[1] = start_sector;
+	command[2] = stop_sector;
+	command[3] = flash_bank;
+	data->iap_entry(command, result);
+
+	switch (result[0]) {
+	case IAP_CMD_SUCCESS:
+		return 0;
+	case IAP_BUSY:
+		return -EBUSY;
+	case IAP_INVALID_SECTOR:
+	default:
+		break;
+	}
+
+	return -EINVAL;
+}
+
+static int nxp_rom_iap_erase_sectors(struct lpc18xx_flash *data,
+				     u32 start_sector, u32 stop_sector,
+				     u32 freq_khz, u32 flash_bank)
+{
+	u32 command[IAP_CMD_MAX_LEN];
+	u32 result[IAP_RES_MAX_LEN];
+	int ret;
+
+	ret = nxp_rom_iap_prepare_sectors(data, start_sector, stop_sector,
+					  flash_bank);
+	if (ret)
+		return ret;
+
+	command[0] = IAP_ERASE_SECTOR;
+	command[1] = start_sector;
+	command[2] = stop_sector;
+	command[3] = freq_khz;
+	command[4] = flash_bank;
+	data->iap_entry(command, result);
+
+	switch (result[0]) {
+	case IAP_CMD_SUCCESS:
+		ret = 0;
+		break;
+	case IAP_BUSY:
+		ret = -EBUSY;
+		break;
+	case IAP_INVALID_SECTOR:
+	default:
+		ret = -EINVAL;
+	}
+
+	return ret;
+}
+
+static int nxp_rom_iap_copy_to_flash(struct lpc18xx_flash *data,
+				     u32 start_sector, u32 stop_sector,
+				     void __iomem *dst, void *src,
+				     u32 freq_khz, u32 flash_bank)
+{
+	u32 command[IAP_CMD_MAX_LEN];
+	u32 result[IAP_RES_MAX_LEN];
+	int ret;
+
+	ret = nxp_rom_iap_prepare_sectors(data, start_sector, stop_sector,
+					  flash_bank);
+	if (ret)
+		return ret;
+
+	command[0] = IAP_COPY_TO_FLASH;
+	command[1] = (u32)dst;
+	command[2] = (u32)src;
+	command[3] = freq_khz;
+	data->iap_entry(command, result);
+}
+
+static struct mtd_erase_region_info lpc18xx_flash_erase_regions[] = {
+	{
+		.offset = 0x00000,
+		.erasesize = SZ_8K,
+		.numblocks = 8,
+	},
+	{
+		.offset = 0x10000,
+		.erasesize = SZ_64K,
+		.numblocks = 7,
+	},
+};
+
+static const unsigned int lpc18xx_flash_write_sizes[] = {512, 1024, 4096};
+
+static int lpc18xx_flash_offset_to_sector(struct lpc18xx_flash *data,
+					  unsigned int offset)
+{
+	unsigned int region_size, sector_offset = 0;
+	struct mtd_erase_region_info *r;
+	int i;
+
+	for (i = 0; i < data->mtd.numeraseregions; i++) {
+		r = &data->mtd.eraseregions[i];
+		region_size = r->offset + r->erasesize * r->numblocks;
+
+		if (offset < region_size)
+			return sector_offset + (offset / r->erasesize);
+
+		offset -= region_size;
+		sector_offset += r->numblocks;
+	}
+
+	return -EINVAL;
+}
 
 static int lpc18xx_flash_read(struct mtd_info *mtd, loff_t from, size_t len,
 			      size_t *retlen, u_char *buf)
@@ -75,8 +278,7 @@ static int lpc18xx_flash_setup_flash(struct lpc18xx_flash *data,
         data->mtd.type = MTD_NORFLASH;
         data->mtd.type = MTD_ROM;
 
-	data->mtd.numeraseregions = 0;
-        data->mtd.writesize = 1;
+        data->mtd.writesize = 512;
         data->mtd.size = 0x80000; /* 512 kB */
 
         data->mtd._read  = lpc18xx_flash_read;
@@ -85,6 +287,9 @@ static int lpc18xx_flash_setup_flash(struct lpc18xx_flash *data,
 
         data->mtd.writebufsize = 512;
 	data->mtd.erasesize = 512;
+
+	data->mtd.numeraseregions = ARRAY_SIZE(lpc18xx_flash_erase_regions);
+	data->mtd.eraseregions = lpc18xx_flash_erase_regions;
 
 	ppdata.of_node = np;
 	ret = mtd_device_parse_register(&data->mtd, NULL, &ppdata, NULL, 0);
@@ -116,6 +321,14 @@ static int lpc18xx_flash_probe(struct platform_device *pdev)
 	if (IS_ERR(data->flash_base))
 		return PTR_ERR(data->flash_base);
 
+	/* boot-rom */
+	data->boot_rom = devm_ioremap_resource(&pdev->dev, &lpc18xx_boot_rom);
+	if (IS_ERR(data->boot_rom)) {
+		dev_info(&pdev->dev, "ioremap failed on boot rom\n");
+		return PTR_ERR(data->boot_rom);
+	}
+
+
 	data->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(data->clk)) {
 		dev_err(&pdev->dev, "flash clock not found\n");
@@ -136,6 +349,8 @@ static int lpc18xx_flash_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "unable to setup internal flash\n");
 		goto dis_clk;
 	}
+
+	lpc18xx_play_with_rom(data);
 
 	return 0;
 
