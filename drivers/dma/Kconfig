@@ -67,11 +67,15 @@ config INTEL_MID_DMAC
 config ASYNC_TX_ENABLE_CHANNEL_SWITCH
 	bool
 
+config LPC18XX_DMAMUX
+	bool
+
 config AMBA_PL08X
 	bool "ARM PrimeCell PL080 or PL081 support"
 	depends on ARM_AMBA
 	select DMA_ENGINE
 	select DMA_VIRTUAL_CHANNELS
+	select LPC18XX_DMAMUX if ARCH_LPC18XX
 	help
 	  Platform has a PL08x DMAC device
 	  which can provide DMA engine support
