@@ -85,6 +85,13 @@
 		status = "disabled";
 	};
 
+	dmamux: dma-mux {
+		compatible = "nxp,lpc1850-dmamux";
+		#dma-cells = <3>;
+		dma-requests = <64>;
+		dma-masters = <&dmac>;
+	};
+
 	soc {
 		dmac: dma@40002000 {
 			compatible = "nxp,lpc1850-gpdma", "arm,pl080", "arm,primecell";
