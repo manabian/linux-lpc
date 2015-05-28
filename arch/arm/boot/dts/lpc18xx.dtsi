@@ -149,6 +149,7 @@
 			interrupt-names = "combined";
 			clocks = <&cgu BASE_LCD_CLK>, <&ccu1 CLK_CPU_LCD>;
 			clock-names = "clcdclk", "apb_pclk";
+			status = "disabled";
 		};
 
 		flash_a: flash@4000c000 {
