@@ -423,6 +423,22 @@
 		};
 	};
 
+	uart3_pins: uart3-pins {
+		uart3_rx_cfg {
+			pins = "p2_4";
+			function = "uart3";
+			input-schmitt-disable;
+			bias-disable;
+			input-enable;
+		};
+
+		uart3_tx_cfg {
+			pins = "p9_3";
+			function = "uart3";
+			bias-pull-down;
+		};
+	};
+
 	usb0_pins: usb0-pins {
 		usb0_pwr_enable {
 			pins = "p2_3";
@@ -607,6 +623,12 @@
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart0_pins>;
+};
+
+&uart3 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart3_pins>;
 };
 
 &usb0_otg_phy {
