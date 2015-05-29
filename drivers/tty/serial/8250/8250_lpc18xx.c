@@ -30,9 +30,10 @@
 #define  LPC18XX_UART_RS485CTRL_DCTRL	BIT(4)
 #define  LPC18XX_UART_RS485CTRL_OINV	BIT(5)
 #define LPC18XX_UART_RS485DLY		(0x054 / sizeof(u32))
-#define  LPC18XX_UART_RS485DLY_MAX	255
+#define LPC18XX_UART_RS485DLY_MAX	255
 
 struct lpc18xx_uart_data {
+	struct uart_8250_dma dma;
 	struct clk *clk_uart;
 	struct clk *clk_reg;
 	int line;
@@ -89,23 +90,43 @@ static int lpc18xx_rs485_config(struct uart_port *port,
 	return 0;
 }
 
+static void lpc18xx_uart_serial_out(struct uart_port *p, int offset, int value)
+{
+	/*
+	 * For DMA mode one must ensure that the UART_FCR_DMA_SELECT
+	 * bit is set when FIFO is enabled. Even if DMA is not used
+	 * setting this bit doesn't seem to affect anything.
+	 */
+	if (offset == UART_FCR && (value & UART_FCR_ENABLE_FIFO))
+		value |= UART_FCR_DMA_SELECT;
+
+	offset = offset << p->regshift;
+	writel(value, p->membase + offset);
+}
+
 static int lpc18xx_serial_probe(struct platform_device *pdev)
 {
-	struct resource *regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	struct resource *irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	struct lpc18xx_uart_data *data;
 	struct uart_8250_port uart;
-	int ret;
+	struct resource *res;
+	int irq, ret;
 
-	if (!regs || !irq) {
-		dev_err(&pdev->dev, "no registers/irq defined\n");
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0) {
+		dev_err(&pdev->dev, "irq not found");
+		return irq;
+	}
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!res) {
+		dev_err(&pdev->dev, "memory resource not found");
 		return -EINVAL;
 	}
 
 	memset(&uart, 0, sizeof(uart));
 
-	uart.port.membase = devm_ioremap(&pdev->dev, regs->start,
-					 resource_size(regs));
+	uart.port.membase = devm_ioremap(&pdev->dev, res->start,
+					 resource_size(res));
 	if (!uart.port.membase)
 		return -ENOMEM;
 
@@ -141,17 +162,25 @@ static int lpc18xx_serial_probe(struct platform_device *pdev)
 	if (ret >= 0)
 		uart.port.line = ret;
 
+	data->dma.rx_param = data;
+	data->dma.tx_param = data;
+
 	spin_lock_init(&uart.port.lock);
 	uart.port.dev = &pdev->dev;
-	uart.port.irq = irq->start;
-	uart.port.mapbase = regs->start;
+	uart.port.irq = irq;
 	uart.port.iotype = UPIO_MEM32;
+	uart.port.mapbase = res->start;
 	uart.port.regshift = 2;
 	uart.port.type = PORT_16550A;
 	uart.port.flags = UPF_FIXED_PORT | UPF_FIXED_TYPE | UPF_SKIP_TEST;
 	uart.port.uartclk = clk_get_rate(data->clk_uart);
 	uart.port.private_data = data;
 	uart.port.rs485_config = lpc18xx_rs485_config;
+	uart.port.serial_out = lpc18xx_uart_serial_out;
+
+	uart.dma = &data->dma;
+	uart.dma->rxconf.src_maxburst = 1;
+	uart.dma->txconf.dst_maxburst = 1;
 
 	ret = serial8250_register_8250_port(&uart);
 	if (ret < 0) {
