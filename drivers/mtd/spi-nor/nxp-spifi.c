@@ -333,7 +333,6 @@ static int nxp_spifi_setup_flash(struct nxp_spifi *spifi,
 	}
 
 	writel(ctrl, spifi->io_base + SPIFI_CTRL);
-	dev_info(spifi->dev, "spifi ctrl = 0x%08x\n", ctrl);
 
 	spifi->mtd.priv  = &spifi->nor;
 	spifi->nor.mtd   = &spifi->mtd;
