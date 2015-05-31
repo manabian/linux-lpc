@@ -13,9 +13,9 @@
  */
 
 #include <linux/clk.h>
-#include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/io.h>
+#include <linux/iopoll.h>
 #include <linux/module.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
@@ -65,27 +65,13 @@ struct nxp_spifi {
 	u32 mcmd;
 };
 
-static int nxp_spifi_wait_for_event(struct nxp_spifi *spifi, u32 event)
-{
-	int retry = 3;
-	u32 stat;
-
-	do {
-		stat = readb(spifi->io_base + SPIFI_STAT);
-		if (!(stat & event))
-			return 0;
-
-		udelay(10);
-	} while (retry--);
-
-	return -ETIMEDOUT;
-}
-
 static int nxp_spifi_wait_for_cmd(struct nxp_spifi *spifi)
 {
+	u8 stat;
 	int ret;
 
-	ret = nxp_spifi_wait_for_event(spifi, SPIFI_STAT_CMD);
+	ret = readb_poll_timeout(spifi->io_base + SPIFI_STAT, stat,
+				 !(stat & SPIFI_STAT_CMD), 10, 30);
 	if (ret)
 		dev_warn(spifi->dev, "command timed out\n");
 
@@ -94,10 +80,12 @@ static int nxp_spifi_wait_for_cmd(struct nxp_spifi *spifi)
 
 static int nxp_spifi_reset(struct nxp_spifi *spifi)
 {
+	u8 stat;
 	int ret;
 
 	writel(SPIFI_STAT_RESET, spifi->io_base + SPIFI_STAT);
-	ret = nxp_spifi_wait_for_event(spifi, SPIFI_STAT_RESET);
+	ret = readb_poll_timeout(spifi->io_base + SPIFI_STAT, stat,
+				 !(stat & SPIFI_STAT_RESET), 10, 30);
 	if (ret)
 		dev_warn(spifi->dev, "state reset timed out\n");
 
@@ -106,7 +94,7 @@ static int nxp_spifi_reset(struct nxp_spifi *spifi)
 
 static int nxp_spifi_set_memory_mode_off(struct nxp_spifi *spifi)
 {
-	u32 stat;
+	u8 stat;
 	int ret;
 
 	stat = readb(spifi->io_base + SPIFI_STAT);
@@ -122,8 +110,8 @@ static int nxp_spifi_set_memory_mode_off(struct nxp_spifi *spifi)
 
 static int nxp_spifi_set_memory_mode_on(struct nxp_spifi *spifi)
 {
-	int retry = 3;
-	u32 stat;
+	u8 stat;
+	int ret;
 
 	stat = readb(spifi->io_base + SPIFI_STAT);
 	if (stat & SPIFI_STAT_MCINIT)
@@ -131,17 +119,12 @@ static int nxp_spifi_set_memory_mode_on(struct nxp_spifi *spifi)
 
 	writel(spifi->mcmd, spifi->io_base + SPIFI_MCMD);
 
-	do {
-		stat = readb(spifi->io_base + SPIFI_STAT);
-		if (stat & SPIFI_STAT_MCINIT)
-			return 0;
+	ret = readb_poll_timeout(spifi->io_base + SPIFI_STAT, stat,
+				 stat & SPIFI_STAT_MCINIT, 10, 30);
+	if (ret)
+		dev_err(spifi->dev, "unable to enter memory mode\n");
 
-		udelay(10);
-	} while (retry--);
-
-	dev_err(spifi->dev, "unable to enter memory mode\n");
-
-	return -ETIMEDOUT;
+	return ret;
 }
 
 static int nxp_spifi_read_reg(struct spi_nor *nor, u8 opcode, u8 *buf, int len)
