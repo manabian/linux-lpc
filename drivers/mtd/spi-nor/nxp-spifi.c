@@ -62,6 +62,7 @@ struct nxp_spifi {
 	void __iomem *flash_base;
 	struct mtd_info mtd;
 	struct spi_nor nor;
+	bool memory_mode;
 	u32 mcmd;
 };
 
@@ -94,16 +95,16 @@ static int nxp_spifi_reset(struct nxp_spifi *spifi)
 
 static int nxp_spifi_set_memory_mode_off(struct nxp_spifi *spifi)
 {
-	u8 stat;
 	int ret;
 
-	stat = readb(spifi->io_base + SPIFI_STAT);
-	if (!(stat & SPIFI_STAT_MCINIT))
+	if (!spifi->memory_mode)
 		return 0;
 
 	ret = nxp_spifi_reset(spifi);
 	if (ret)
 		dev_err(spifi->dev, "unable to enter command mode\n");
+	else
+		spifi->memory_mode = false;
 
 	return ret;
 }
@@ -113,16 +114,16 @@ static int nxp_spifi_set_memory_mode_on(struct nxp_spifi *spifi)
 	u8 stat;
 	int ret;
 
-	stat = readb(spifi->io_base + SPIFI_STAT);
-	if (stat & SPIFI_STAT_MCINIT)
+	if (spifi->memory_mode)
 		return 0;
 
 	writel(spifi->mcmd, spifi->io_base + SPIFI_MCMD);
-
 	ret = readb_poll_timeout(spifi->io_base + SPIFI_STAT, stat,
 				 stat & SPIFI_STAT_MCINIT, 10, 30);
 	if (ret)
 		dev_err(spifi->dev, "unable to enter memory mode\n");
+	else
+		spifi->memory_mode = true;
 
 	return ret;
 }
