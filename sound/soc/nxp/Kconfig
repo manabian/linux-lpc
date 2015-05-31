@@ -1,0 +1,15 @@
+config SND_SOC_NXP
+	tristate "ASoC support for NXP SoCs"
+	depends on COMPILE_TEST || ARCH_LPC18XX
+	help
+	  Say Y or M if you want to add support for codecs attached to
+	  the NXP SoCs' Audio interfaces. You will also need to select
+	  the audio interfaces to support below.
+
+config SND_SOC_LPC32XX_I2S
+	tristate "NXP LPC32xx I2S device driver"
+	depends on OF && SND_SOC_NXP
+	select SND_SOC_GENERIC_DMAENGINE_PCM
+	help
+	  Say Y or M if you want to add support for I2S driver for
+	  NXP LPC32xx I2S device.
