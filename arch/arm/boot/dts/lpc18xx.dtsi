@@ -372,6 +372,30 @@
 			status = "disabled";
 		};
 
+		i2s0: i2s@400a2000 {
+			compatible = "nxp,lpc1850-i2s";
+			reg = <0x400a2000 0x1000>;
+			interrupts = <28>;
+			clocks = <&ccu1 CLK_APB1_I2S>;
+			clock-names = "i2sclk";
+			dmas = <&dmamux  9 1 PL08X_AHB2
+				&dmamux 10 1 PL08X_AHB2>;
+			dma-names = "tx", "rx";
+			status = "disabled";
+		};
+
+		i2s1: i2s@400a3000 {
+			compatible = "nxp,lpc1850-i2s";
+			reg = <0x400a3000 0x1000>;
+			interrupts = <29>;
+			clocks = <&ccu1 CLK_APB1_I2S>;
+			clock-names = "i2sclk";
+			dmas = <&dmamux 3 2 PL08X_AHB2
+				&dmamux 4 2 PL08X_AHB2>;
+			dma-names = "tx", "rx";
+			status = "disabled";
+		};
+
 		can1: can@400a4000 {
 			compatible = "bosch,c_can";
 			reg = <0x400a4000 0x1000>;
