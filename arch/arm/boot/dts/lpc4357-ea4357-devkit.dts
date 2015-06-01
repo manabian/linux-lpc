@@ -350,6 +350,62 @@
 		};
 	};
 
+	i2s0_pins: i2s0-pins {
+		i2s0_tx_sck_cfg {
+			pins = "p3_0";
+			function = "i2s0_tx_sck";
+			slew-rate = <1>;
+			bias-pull-down;
+			input-enable;
+			input-schmitt-disable;
+		};
+
+		i2s0_tx_sda_cfg {
+			pins = "pc_12";
+			function = "i2s0_tx_sda";
+			slew-rate = <1>;
+			bias-pull-down;
+			input-enable;
+			input-schmitt-disable;
+		};
+
+		i2s0_tx_ws_cfg {
+			pins = "pc_13";
+			function = "i2s0_tx_ws";
+			slew-rate = <1>;
+			bias-pull-down;
+			input-enable;
+			input-schmitt-disable;
+		};
+
+		i2s0_rx_sck_cfg {
+			pins = "p6_0";
+			function = "i2s0_rx_sck";
+			slew-rate = <1>;
+			bias-pull-down;
+			input-enable;
+			input-schmitt-disable;
+		};
+
+		i2s0_rx_sda_cfg {
+			pins = "p6_2";
+			function = "i2s0_rx_sda";
+			slew-rate = <1>;
+			bias-pull-down;
+			input-enable;
+			input-schmitt-disable;
+		};
+
+		i2s0_rx_ws_cfg {
+			pins = "p6_1";
+			function = "i2s0_rx_ws";
+			slew-rate = <1>;
+			bias-pull-down;
+			input-enable;
+			input-schmitt-disable;
+		};
+	};
+
 	sdmmc_pins: sdmmc-pins {
 		sdmmc_clk_cfg {
 			pins = "pc_0";
@@ -508,6 +564,12 @@
 		compatible = "nxp,pca9532";
 		reg = <0x60>;
 	};
+};
+
+&i2s0 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2s0_pins>;
 };
 
 &emc {
