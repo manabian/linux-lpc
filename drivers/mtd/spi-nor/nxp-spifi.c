@@ -277,6 +277,7 @@ static int nxp_spifi_setup_flash(struct nxp_spifi *spifi,
 {
 	struct mtd_part_parser_data ppdata;
 	enum read_mode flash_read;
+	char *flash_name = NULL;
 	u32 ctrl, property;
 	char modalias[40];
 	u16 mode = 0;
@@ -350,6 +351,10 @@ static int nxp_spifi_setup_flash(struct nxp_spifi *spifi,
 		return ret;
 	}
 
+	/* Use auto detect unless chip is specified */
+	if (strcmp(modalias, "spi-nor"))
+		flash_name = modalias;
+
 	/*
 	 * The first read on a hard reset isn't reliable so do a
 	 * dummy read of the id before calling spi_nor_scan().
@@ -361,7 +366,7 @@ static int nxp_spifi_setup_flash(struct nxp_spifi *spifi,
 	 */
 	nxp_spifi_dummy_id_read(&spifi->nor);
 
-	ret = spi_nor_scan(&spifi->nor, modalias, flash_read);
+	ret = spi_nor_scan(&spifi->nor, flash_name, flash_read);
 	if (ret) {
 		dev_err(spifi->dev, "device scan failed\n");
 		return ret;
