@@ -362,6 +362,15 @@
 			clocks = <&ccu1 CLK_CPU_SCU>;
 		};
 
+		pint: interrupt-controller@40087000 {
+			compatible = "nxp,lpc1850-gpio-pint";
+			reg = <0x40087000 0x1000>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			interrupts = <32 33 34 35 36 37 38 39>;
+			clocks = <&ccu1 CLK_CPU_GPIO>;
+		};
+
 		i2c0: i2c@400a1000 {
 			compatible = "nxp,lpc1788-i2c";
 			reg = <0x400a1000 0x1000>;
