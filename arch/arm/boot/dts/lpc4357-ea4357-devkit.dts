@@ -30,6 +30,7 @@
 	};
 
 	chosen {
+		bootargs = "console=ttyS0,115200 earlyprintk initrd=0x28d00000,2M root=/dev/ram0 init=/linuxrc";
 		stdout-path = &uart0;
 	};
 
