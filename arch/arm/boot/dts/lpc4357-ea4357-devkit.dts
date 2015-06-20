@@ -540,6 +540,50 @@
 		};
 	};
 
+	cs1 {
+		#address-cells = <2>;
+		#size-cells = <1>;
+		ranges;
+
+		mpmc,cs = <1>;
+		mpmc,memory-width = <8>;
+		mpmc,byte-lane-low;
+		mpmc,write-enable-delay = <30>;
+		mpmc,write-access-delay = <20>;
+		mpmc,output-enable-delay = <20>;
+		mpmc,read-access-delay = <90>;
+		mpmc,turn-round-delay = <150>;
+
+		flash@0,0 {
+			compatible = "onfi,nand";
+			reg = <1 0 0x200000>;
+			bank-width = <2>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			nand-on-flash-bbt;
+			nand-ecc-mode = "soft";
+			nand-ale-mask = <0x080000>;
+			nand-cle-mask = <0x100000>;
+			nand-chip-delay = <35>;
+
+			partition@0 {
+				label = "bootloader";
+				reg = <0x000000 0x0020000>; /* 128 KiB */
+			};
+
+			partition@1 {
+				label = "kernel";
+				reg = <0x020000 0x02e0000>; /* 2.875 MiB */
+			};
+
+			partition@2 {
+				label = "rootfs";
+				reg = <0x300000 0x7d00000>; /* 125 MiB */
+			};
+		};
+	};
+
 	cs2 {
 		#address-cells = <2>;
 		#size-cells = <1>;
