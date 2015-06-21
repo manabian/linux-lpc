@@ -81,6 +81,14 @@
 			status = "disabled";
 		};
 
+		boot_rom: firmware@10400000 {
+			compatible = "nxp,lpc1850-boot-rom";
+			reg = <0x10400000 0x10000>;
+			syscon = <&creg>;
+			nvmem-cells = <&part_id>;
+			nvmem-cell-names = "PartID";
+		};
+
 		dmac: dma-controller@40002000 {
 			compatible = "arm,pl080", "arm,primecell";
 			arm,primecell-periphid = <0x00041080>;
