@@ -29,6 +29,14 @@
 		sram1: sram@10080000 {
 			compatible = "mmio-sram";
 			reg = <0x10080000 0xa000>; /* 32 + 8 KiB local SRAM */
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x10080000 0xa000>;
+
+			boot-rom-sram@0 {
+				compatible = "nxp,lpc1850-boot-rom-sram";
+				reg = <0x9000 0x1000>; /* Top 4 KiB */
+			};
 		};
 
 		sram2: sram@20000000 {
