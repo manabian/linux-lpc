@@ -1,0 +1,53 @@
+/*
+ * Embedded Artists' 7 inch (800x480 pixel) TFT LCD Display
+ * Art. EA-LCD-006
+ *
+ * Copyright 2015 Joachim Eastwood <manabian@gmail.com>
+ *
+ * This code is released using a dual license strategy: BSD/GPL
+ * You can choose the licence that better fits your requirements.
+ *
+ * Released under the terms of 3-clause BSD License
+ * Released under the terms of GNU General Public License Version 2.0
+ *
+ */
+
+&pinctrl {
+	lcdc_pins: lcdc-pins {
+	};
+};
+
+&lcdc {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&lcdc_pins>;
+
+	port {
+		clcd_pads: endpoint {
+			remote-endpoint = <&clcd_panel>;
+			arm,pl11x,tft-r0g0b0-pads = <4 15 20>;
+		};
+	};
+
+	panel {
+		compatible = "panel-dpi";
+
+		port {
+			clcd_panel: endpoint {
+				remote-endpoint = <&clcd_pads>;
+			};
+		};
+
+		panel-timing {
+			clock-frequency = <33333000>;
+			hactive = <800>;
+			vactive = <480>;
+			hback-porch = <45>;
+			hfront-porch = <17>;
+			hsync-len = <2>;
+			vback-porch = <22>;
+			vfront-porch = <22>;
+			vsync-len = <2>;
+		};
+	};
+};
