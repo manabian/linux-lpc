@@ -44,23 +44,6 @@
 #define	STMMAC_CSR_150_250M	0x4	/* MDC = clk_scr_i/102 */
 #define	STMMAC_CSR_250_300M	0x5	/* MDC = clk_scr_i/122 */
 
-/* The MDC clock could be set higher than the IEEE 802.3
- * specified frequency limit 0f 2.5 MHz, by programming a clock divider
- * of value different than the above defined values. The resultant MDIO
- * clock frequency of 12.5 MHz is applicable for the interfacing chips
- * supporting higher MDC clocks.
- * The MDC clock selection macros need to be defined for MDC clock rate
- * of 12.5 MHz, corresponding to the following selection.
- */
-#define STMMAC_CSR_I_4		0x8	/* clk_csr_i/4 */
-#define STMMAC_CSR_I_6		0x9	/* clk_csr_i/6 */
-#define STMMAC_CSR_I_8		0xA	/* clk_csr_i/8 */
-#define STMMAC_CSR_I_10		0xB	/* clk_csr_i/10 */
-#define STMMAC_CSR_I_12		0xC	/* clk_csr_i/12 */
-#define STMMAC_CSR_I_14		0xD	/* clk_csr_i/14 */
-#define STMMAC_CSR_I_16		0xE	/* clk_csr_i/16 */
-#define STMMAC_CSR_I_18		0xF	/* clk_csr_i/18 */
-
 /* AXI DMA Burst length supported */
 #define DMA_AXI_BLEN_4		(1 << 1)
 #define DMA_AXI_BLEN_8		(1 << 2)
