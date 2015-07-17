@@ -174,6 +174,18 @@ struct stmmac_extra_stats {
 
 #define SF_DMA_MODE 1		/* DMA STORE-AND-FORWARD Operation Mode */
 
+/* AXI DMA Burst length supported */
+#define DMA_AXI_BLEN_4		(1 << 1)
+#define DMA_AXI_BLEN_8		(1 << 2)
+#define DMA_AXI_BLEN_16		(1 << 3)
+#define DMA_AXI_BLEN_32		(1 << 4)
+#define DMA_AXI_BLEN_64		(1 << 5)
+#define DMA_AXI_BLEN_128	(1 << 6)
+#define DMA_AXI_BLEN_256	(1 << 7)
+#define DMA_AXI_BLEN_ALL (DMA_AXI_BLEN_4 | DMA_AXI_BLEN_8 | DMA_AXI_BLEN_16 \
+			| DMA_AXI_BLEN_32 | DMA_AXI_BLEN_64 \
+			| DMA_AXI_BLEN_128 | DMA_AXI_BLEN_256)
+
 /* DAM HW feature register fields */
 #define DMA_HW_FEAT_MIISEL	0x00000001	/* 10/100 Mbps Support */
 #define DMA_HW_FEAT_GMIISEL	0x00000002	/* 1000 Mbps Support */

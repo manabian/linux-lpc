@@ -32,18 +32,6 @@
 #define STMMAC_RX_COE_TYPE1	1
 #define STMMAC_RX_COE_TYPE2	2
 
-/* AXI DMA Burst length supported */
-#define DMA_AXI_BLEN_4		(1 << 1)
-#define DMA_AXI_BLEN_8		(1 << 2)
-#define DMA_AXI_BLEN_16		(1 << 3)
-#define DMA_AXI_BLEN_32		(1 << 4)
-#define DMA_AXI_BLEN_64		(1 << 5)
-#define DMA_AXI_BLEN_128	(1 << 6)
-#define DMA_AXI_BLEN_256	(1 << 7)
-#define DMA_AXI_BLEN_ALL (DMA_AXI_BLEN_4 | DMA_AXI_BLEN_8 | DMA_AXI_BLEN_16 \
-			| DMA_AXI_BLEN_32 | DMA_AXI_BLEN_64 \
-			| DMA_AXI_BLEN_128 | DMA_AXI_BLEN_256)
-
 /* Platfrom data for platform device structure's platform_data field */
 
 struct stmmac_mdio_bus_data {
