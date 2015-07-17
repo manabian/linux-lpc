@@ -32,18 +32,6 @@
 #define STMMAC_RX_COE_TYPE1	1
 #define STMMAC_RX_COE_TYPE2	2
 
-/* Define the macros for CSR clock range parameters to be passed by
- * platform code.
- * This could also be configured at run time using CPU freq framework. */
-
-/* MDC Clock Selection define*/
-#define	STMMAC_CSR_60_100M	0x0	/* MDC = clk_scr_i/42 */
-#define	STMMAC_CSR_100_150M	0x1	/* MDC = clk_scr_i/62 */
-#define	STMMAC_CSR_20_35M	0x2	/* MDC = clk_scr_i/16 */
-#define	STMMAC_CSR_35_60M	0x3	/* MDC = clk_scr_i/26 */
-#define	STMMAC_CSR_150_250M	0x4	/* MDC = clk_scr_i/102 */
-#define	STMMAC_CSR_250_300M	0x5	/* MDC = clk_scr_i/122 */
-
 /* AXI DMA Burst length supported */
 #define DMA_AXI_BLEN_4		(1 << 1)
 #define DMA_AXI_BLEN_8		(1 << 2)

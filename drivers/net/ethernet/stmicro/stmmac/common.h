@@ -139,6 +139,14 @@ struct stmmac_extra_stats {
 	unsigned long pcs_speed;
 };
 
+/* MDC Clock Selection define*/
+#define	STMMAC_CSR_60_100M	0x0	/* MDC = clk_scr_i/42 */
+#define	STMMAC_CSR_100_150M	0x1	/* MDC = clk_scr_i/62 */
+#define	STMMAC_CSR_20_35M	0x2	/* MDC = clk_scr_i/16 */
+#define	STMMAC_CSR_35_60M	0x3	/* MDC = clk_scr_i/26 */
+#define	STMMAC_CSR_150_250M	0x4	/* MDC = clk_scr_i/102 */
+#define	STMMAC_CSR_250_300M	0x5	/* MDC = clk_scr_i/122 */
+
 /* CSR Frequency Access Defines*/
 #define CSR_F_35M	35000000
 #define CSR_F_60M	60000000
