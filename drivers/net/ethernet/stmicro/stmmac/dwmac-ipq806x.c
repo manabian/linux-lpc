@@ -154,8 +154,9 @@ static int get_clk_div_rgmii(struct ipq806x_gmac *gmac, unsigned int speed)
 	return div;
 }
 
-static int ipq806x_gmac_set_speed(struct ipq806x_gmac *gmac, unsigned int speed)
+static void ipq806x_gmac_fix_mac_speed(void *priv, unsigned int speed)
 {
+	struct ipq806x_gmac *gmac = priv;
 	uint32_t clk_bits, val;
 	int div;
 
@@ -175,7 +176,7 @@ static int ipq806x_gmac_set_speed(struct ipq806x_gmac *gmac, unsigned int speed)
 	default:
 		dev_err(&gmac->pdev->dev, "Unsupported PHY mode: \"%s\"\n",
 			phy_modes(gmac->phy_mode));
-		return -EINVAL;
+		return;
 	}
 
 	/* Disable the clocks */
@@ -194,8 +195,6 @@ static int ipq806x_gmac_set_speed(struct ipq806x_gmac *gmac, unsigned int speed)
 	regmap_read(gmac->nss_common, NSS_COMMON_CLK_GATE, &val);
 	val |= clk_bits;
 	regmap_write(gmac->nss_common, NSS_COMMON_CLK_GATE, val);
-
-	return 0;
 }
 
 static void *ipq806x_gmac_of_parse(struct ipq806x_gmac *gmac)
@@ -246,13 +245,6 @@ static void *ipq806x_gmac_of_parse(struct ipq806x_gmac *gmac)
 	}
 
 	return NULL;
-}
-
-static void ipq806x_gmac_fix_mac_speed(void *priv, unsigned int speed)
-{
-	struct ipq806x_gmac *gmac = priv;
-
-	ipq806x_gmac_set_speed(gmac, speed);
 }
 
 static int ipq806x_gmac_probe(struct platform_device *pdev)
