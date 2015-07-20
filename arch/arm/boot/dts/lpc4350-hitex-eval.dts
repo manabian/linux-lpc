@@ -30,6 +30,7 @@
 	};
 
 	chosen {
+		bootargs = "console=ttyS0,115200 earlyprintk root=/dev/mtdblock2 ro rootfstype=jffs2 init=/linuxrc";
 		stdout-path = &uart0;
 	};
 
