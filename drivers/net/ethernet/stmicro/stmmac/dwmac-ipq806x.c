@@ -253,7 +253,7 @@ static int ipq806x_gmac_probe(struct platform_device *pdev)
 	struct stmmac_resources stmmac_res;
 	struct device *dev = &pdev->dev;
 	struct ipq806x_gmac *gmac;
-	int val;
+	unsigned int val;
 	int err;
 
 	err = stmmac_get_platform_resources(pdev, &stmmac_res);
