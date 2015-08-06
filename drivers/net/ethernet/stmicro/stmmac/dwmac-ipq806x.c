@@ -201,12 +201,6 @@ static int ipq806x_gmac_of_parse(struct ipq806x_gmac *gmac)
 {
 	struct device *dev = &gmac->pdev->dev;
 
-	gmac->phy_mode = of_get_phy_mode(dev->of_node);
-	if (gmac->phy_mode < 0) {
-		dev_err(dev, "missing phy mode property\n");
-		return -EINVAL;
-	}
-
 	if (of_property_read_u32(dev->of_node, "qcom,id", &gmac->id) < 0) {
 		dev_err(dev, "missing qcom id property\n");
 		return -EINVAL;
@@ -284,7 +278,7 @@ static int ipq806x_gmac_probe(struct platform_device *pdev)
 	      12 << NSS_COMMON_GMAC_CTL_IFG_LIMIT_OFFSET;
 	/* We also initiate an AXI low power exit request */
 	val |= NSS_COMMON_GMAC_CTL_CSYS_REQ;
-	switch (gmac->phy_mode) {
+	switch (plat_dat->interface) {
 	case PHY_INTERFACE_MODE_RGMII:
 		val |= NSS_COMMON_GMAC_CTL_PHY_IFACE_SEL;
 		break;
@@ -293,7 +287,7 @@ static int ipq806x_gmac_probe(struct platform_device *pdev)
 		break;
 	default:
 		dev_err(&pdev->dev, "Unsupported PHY mode: \"%s\"\n",
-			phy_modes(gmac->phy_mode));
+			phy_modes(plat_dat->interface));
 		return -EINVAL;
 	}
 	regmap_write(gmac->nss_common, NSS_COMMON_GMAC_CTL(gmac->id), val);
@@ -301,7 +295,7 @@ static int ipq806x_gmac_probe(struct platform_device *pdev)
 	/* Configure the clock src according to the mode */
 	regmap_read(gmac->nss_common, NSS_COMMON_CLK_SRC_CTRL, &val);
 	val &= ~(1 << NSS_COMMON_CLK_SRC_CTRL_OFFSET(gmac->id));
-	switch (gmac->phy_mode) {
+	switch (plat_dat->interface) {
 	case PHY_INTERFACE_MODE_RGMII:
 		val |= NSS_COMMON_CLK_SRC_CTRL_RGMII(gmac->id) <<
 			NSS_COMMON_CLK_SRC_CTRL_OFFSET(gmac->id);
@@ -312,7 +306,7 @@ static int ipq806x_gmac_probe(struct platform_device *pdev)
 		break;
 	default:
 		dev_err(&pdev->dev, "Unsupported PHY mode: \"%s\"\n",
-			phy_modes(gmac->phy_mode));
+			phy_modes(plat_dat->interface));
 		return -EINVAL;
 	}
 	regmap_write(gmac->nss_common, NSS_COMMON_CLK_SRC_CTRL, val);
@@ -322,7 +316,7 @@ static int ipq806x_gmac_probe(struct platform_device *pdev)
 	val |= NSS_COMMON_CLK_GATE_PTP_EN(gmac->id);
 	regmap_write(gmac->nss_common, NSS_COMMON_CLK_GATE, val);
 
-	if (gmac->phy_mode == PHY_INTERFACE_MODE_SGMII) {
+	if (plat_dat->interface == PHY_INTERFACE_MODE_SGMII) {
 		regmap_write(gmac->qsgmii_csr, QSGMII_PHY_SGMII_CTL(gmac->id),
 			     QSGMII_PHY_CDR_EN |
 			     QSGMII_PHY_RX_FRONT_EN |
@@ -335,6 +329,8 @@ static int ipq806x_gmac_probe(struct platform_device *pdev)
 			     0x2 << QSGMII_PHY_CDR_PI_SLEW_OFFSET |
 			     0xC << QSGMII_PHY_TX_DRV_AMP_OFFSET);
 	}
+
+	gmac->phy_mode = plat_dat->interface;
 
 	plat_dat->has_gmac = true;
 	plat_dat->bsp_priv = gmac;
