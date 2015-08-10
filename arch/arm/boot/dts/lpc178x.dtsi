@@ -1,0 +1,404 @@
+/*
+ * Common base for NXP LPC178x/7x and LPC408x/7x devices.
+ *
+ * Copyright 2015 Joachim Eastwood <manabian@gmail.com>
+ *
+ * This code is released using a dual license strategy: BSD/GPL
+ * You can choose the licence that better fits your requirements.
+ *
+ * Released under the terms of 3-clause BSD License
+ * Released under the terms of GNU General Public License Version 2.0
+ *
+ */
+
+#include "armv7-m.dtsi"
+
+/ {
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu@0 {
+			compatible = "arm,cortex-m3";
+			device_type = "cpu";
+			reg = <0x0>;
+			clocks = <&ccu1 CLK_CPU_CORE>;
+		};
+	};
+
+	clocks {
+		xtal: xtal {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <12000000>;
+		};
+
+		xtal32: xtal32 {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <32768>;
+		};
+
+	};
+
+	soc {
+		flash: flash@00000000 {
+			compatible = "nxp,lpc2478-flash";
+			reg = <0x00200000 0x1000>, <0x000000000 0x80000>;
+			reg-names = "controller", "flash";
+			nxp,iap = <&boot_rom>;
+			status = "disabled";
+		};
+
+		eeprom: eeprom@00200000 {
+			compatible = "nxp,lpc1788-eeprom";
+			reg = <0x002000000 0x1000>;
+			interrupts = <40>;
+			status = "disabled";
+		};
+
+		main_sram: sram@10000000 {
+			compatible = "mmio-sram";
+			reg = <0x10000000 0x10000>; /* Up to 64 KiB of peripheral SRAM */
+		};
+
+		boot_rom: rom@1fff0000 {
+			compatible = "nxp,lpc1788-boot-rom";
+			reg = <0x1fff0000 0x2000>;
+		};
+
+		peripheral_sram: sram@20000000 {
+			compatible = "mmio-sram";
+			reg = <0x20000000 0x8000>; /* 32 KiB of peripheral SRAM */
+		};
+
+		/* AHB peripherals */
+		dmac: dma@20080000 {
+			compatible = "arm,pl080", "arm,primecell";
+			arm,primecell-periphid = <0x00041080>;
+			reg = <0x20080000 0x1000>;
+			interrupts = <26>;
+			clocks = <&clk PCGPDMA>;
+			clock-names = "apb_pclk";
+			#dma-cells = <2>;
+			dma-channels = <8>;
+			dma-requests = <16>;
+			lli-bus-interface-ahb1;
+			lli-bus-interface-ahb2;
+			mem-bus-interface-ahb1;
+			mem-bus-interface-ahb2;
+			memcpy-burst-size = <256>;
+			memcpy-bus-width = <32>;
+		};
+
+		mac: ethernet@20084000 {
+			compatible = "nxp,lpc-eth";
+			reg = <0x20084000 0x1000>;
+			interrupts = <28>;
+			clocks = <&clk PCENET>;
+			status = "disabled";
+		};
+
+		lcdc: lcd-controller@20088000 {
+			compatible = "arm,pl111", "arm,primecell";
+			reg = <0x20088000 0x1000>;
+			interrupts = <37>;
+			interrupt-names = "combined";
+			clocks = <&clk >, <&clk PCLCD>;
+			clock-names = "clcdclk", "apb_pclk";
+			status = "disabled";
+		};
+
+		usb: ohci@2008c000 {
+			compatible = "ohci";
+			reg = <0x2008c000 0x1000>;
+			interrupts = <24>;
+			clocks = <&clk PCUSB>;
+			status = "disabled";
+		};
+
+		crc@20090000 {
+			compatible = "nxp,lpc1778-crc";
+			reg = <0x20090000 0x1000>;
+		};
+
+		spifi: flash-interface@20094000 {
+			compatible = "nxp,lpc1773-spifi";
+			reg = <0x20094000 0x1000>, <0x28000000 0x1000000>;
+			reg-names = "spifi", "flash";
+			clocks = <&clk PCSPIFI>, <&clk >;
+			clock-names = "spifi", "reg";
+			status = "disabled";
+		};
+
+		gpio: gpio@20098000 {
+			compatible = "nxp,lpc2470-gpio-fast";
+			reg = <0x20098000 0x1000>;
+			clocks = <&clk PCGPIO>
+			gpio-controller;
+                        #gpio-cells = <2>;
+		};
+
+		emc: memory-controller@2009c000 {
+			compatible = "arm,pl172", "arm,primecell";
+			reg = <0x2009c000 0x1000>;
+			clocks = <&clk >, <&clk PCEMC>;
+			clock-names = "mpmcclk", "apb_pclk";
+			#address-cells = <2>;
+			#size-cells = <1>;
+			ranges = <0 0 0x80000000 0x4000000
+				  1 0 0x90000000 0x4000000
+				  2 0 0x98000000 0x4000000
+				  3 0 0x9c000000 0x4000000>;
+			status = "disabled";
+		};
+
+		/* APB0 peripherals */
+		watchdog@40000000 {
+			compatible = "nxp,lpc1788-wwdt";
+			reg = <0x40000000 0x1000>;
+			interrupts = <0>;
+		};
+
+		timer0: timer@40004000 {
+			compatible = "nxp,lpc3220-timer";
+			reg = <0x40004000 0x1000>;
+			interrupts = <1>;
+			clocks = <&clk PCTIM0>;
+		};
+
+		timer1: timer@40008000 {
+			compatible = "nxp,lpc3220-timer";
+			reg = <0x40008000 0x1000>;
+			interrupts = <2>;
+			clocks = <&clk PCTIM1>;
+		};
+
+		uart0: uart@4000c000 {
+			compatible = "ns16550a";
+			reg = <0x4000c000 0x1000>;
+			interrupts = <5>;
+			clocks = <&clk PCUART0>;
+		};
+
+		uart1: uart@40010000 {
+			compatible = "ns16550a";
+			reg = <0x40010000 0x1000>;
+			interrupts = <6>;
+			clocks = <&clk PCUART1>;
+			status = "disabled";
+		};
+
+		pwm0: pwm@40014000 {
+			compatible = "nxp,lpc2470-pwm";
+			reg = <0x40014000 0x1000>;
+			interrupts = <39>;
+			clocks = <&clk PCPWM0>;
+			status = "disabled";
+		};
+
+		pwm1: pwm@40018000 {
+			compatible = "nxp,lpc2470-pwm";
+			reg = <0x40018000 0x1000>;
+			interrupts = <9>;
+			clocks = <&clk PCPWM1>;
+			status = "disabled";
+		};
+
+		i2c0: i2c@4001c000 {
+			compatible = "nxp,lpc2470-i2c";
+			reg = <0x4001c000 0x1000>;
+			interrupts = <10>;
+			clocks = <&clk PCI2C0>;
+			status = "disabled";
+		};
+
+		rtc@40024000 {
+			compatible = "nxp,lpc1788-rtc";
+			reg = <0x40024000 0x1000>;
+			interrupts = <17>;
+			clocks = <&clk PCRTC>;
+		};
+
+		gpio_irq: gpio@40028000 {
+			compatible = "nxp,lpc2470-gpio";
+			reg = <0x40028000 0x1000>;
+			interrupts = <38>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			clocks = <&clk PCGPIO>;
+		};
+
+		pinctrl: pin-controller@4002c000 {
+			compatible = "nxp,lpc1778-iocon";
+			reg = <0x4002c000 0x1000>;
+			clocks = <&clk PCGPIO>;
+		};
+
+		ssp1: spi@40030000 {
+			compatible = "arm,pl022", "arm,primecell";
+			reg = <0x40030000 0x1000>;
+			interrupts = <15>;
+			clocks = <&clk >, <&clk PCSSP1>;
+			clock-names = "sspclk", "apb_pclk";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
+		adc: adc@40034000 {
+			compatible = "nxp,lpc2470-adc";
+			reg = <0x40034000 0x1000>;
+			interrupts = <22>;
+			clocks = <&clk PCADC>;
+			status = "disabled";
+		};
+
+		/* Add CAN controllers (SJA1000) */
+
+		i2c1: i2c@4005c000 {
+			compatible = "nxp,lpc2470-i2c";
+			reg = <0x4005c000 0x1000>;
+			interrupts = <11>;
+			clocks = <&clk PCI2C1>;
+			status = "disabled";
+		};
+
+		/* APB1 peripherals */
+		ssp0: spi@40088000 {
+			compatible = "arm,pl022", "arm,primecell";
+			reg = <0x40088000 0x1000>;
+			interrupts = <14>;
+			clocks = <&clk >, <&clk PCSSP0>;
+			clock-names = "sspclk", "apb_pclk";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
+		dac: dac@4008c000 {
+			compatible = "nxp,lpc2470-dac";
+			reg = <0x4008c000 0x1000>;
+		};
+
+		timer2: timer@40090000 {
+			compatible = "nxp,lpc3220-timer";
+			reg = <0x40090000 0x1000>;
+			interrupts = <3>;
+			clocks = <&clk PCTIM2>;
+		};
+
+		timer3: timer@40094000 {
+			compatible = "nxp,lpc3220-timer";
+			reg = <0x40094000 0x1000>;
+			interrupts = <4>;
+			clocks = <&clk PCTIM3>;
+		};
+
+		uart2: uart@40098000 {
+			compatible = "ns16550a";
+			reg = <0x40098000 0x1000>;
+			interrupts = <7>;
+			clocks = <&clk PCUART2>;
+			status = "disabled";
+		};
+
+		uart3: uart@4009c000 {
+			compatible = "ns16550a";
+			reg = <0x4009c000 0x1000>;
+			interrupts = <8>;
+			clocks = <&clk PCUART3>;
+			status = "disabled";
+		};
+
+		i2c2: i2c@400a0000 {
+			compatible = "nxp,lpc2470-i2c";
+			reg = <0x400a0000 0x1000>;
+			interrupts = <12>;
+			clocks = <&clk PCI2C2>;
+			status = "disabled";
+		};
+
+		uart4: uart@400a4000 {
+			compatible = "ns16550a";
+			reg = <0x400a4000 0x1000>;
+			interrupts = <35>;
+			clocks = <&clk PCUART4>;
+			status = "disabled";
+		};
+
+		i2s: i2s@400a8000 {
+			compatible = "nxp,lpc2470-i2s";
+			reg = <0x400a8000 0x1000>;
+			interrupts = <27>;
+			clocks = <&clk PCI2S>;
+			status = "disabled";
+		};
+
+		ssp2: spi@400ac000 {
+			compatible = "arm,pl022", "arm,primecell";
+			reg = <0x400ac000 0x1000>;
+			interrupts = <36>;
+			clocks = <&clk >, <&clk PCSSP2>;
+			clock-names = "sspclk", "apb_pclk";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
+		mcpwm: pwm@400b8000 {
+			compatible = "nxp,lpc3220-mcpwm";
+			reg = <0x400b8000 0x1000>;
+			interrupts = <30>;
+			clocks = <&clk PCMCPWM>;
+		};
+
+		qei: input@400bc000 {
+			compatible = "nxp,lpc1778-qei";
+			reg = <0x400bc000 0x1000>;
+			interrupts = <31>;
+			clocks = <&clk PCQEI>;
+		};
+
+		mci: mmc@400c0000 {
+			compatible = "arm,pl18x", "arm,primecell";
+			reg = <0x400c0000 0x1000>;
+			interrupts = <29>;
+			clocks = <&clk >, <&clk PCSDC>;
+			clock-names = "sdi", "apb_pclk";
+			status = "disabled";
+		};
+
+		syscon: syscon@400fc000 {
+			compatible = "nxp,lpc1778-syscon", "syscon", "simple-mfd";
+			reg = <0x400fc000 0x1000>;
+
+			clk: clock-controller@10c {
+				compatible = "nxp,lpc1778-clk";
+				clocks = <&xtal>, <&xtal32>;
+				clock-names = "xtal", "xtal32";
+				#clock-cells = <1>;
+			};
+
+			extint: interrupt-controller@140 {
+				compatible = "nxp,lpc2470-extint";
+				interrupts = <18 19 29 21>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+			};
+
+			dmamux: dmamux@1c4 {
+				compatible = "nxp,lpc1788-dmamux";
+				#dma-cells = <3>;
+				dma-requests = <32>;
+				dma-masters = <&dmac>;
+			};
+
+			rstcon: reset-controller@1cc {
+				compatible = "nxp,lpc1788-rstcon";
+				#reset-cells = <1>;
+			};
+
+		};
+	};
+};
