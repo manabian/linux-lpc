@@ -338,6 +338,21 @@
 			bias-pull-down;
 		};
 	};
+
+	usb0_pins: usb0-pins {
+		usb0_pwr_enable {
+			pins = "p2_3";
+			function = "usb0";
+			bias-disable;
+		};
+
+		usb0_pwr_fault {
+			pins = "p2_4";
+			function = "usb0";
+			bias-disable;
+			input-enable;
+		};
+	};
 };
 
 &adc1 {
@@ -479,4 +494,10 @@
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart0_pins>;
+};
+
+&usb0 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&usb0_pins>;
 };
