@@ -279,8 +279,7 @@ struct lpc18xx_cgu_pll_clk {
 		.table = lpc18xx_cgu_ ##_table,		\
 	},						\
 	.gate = {					\
-		.bit_idx = 0,				\
-		.flags = CLK_GATE_SET_TO_DISABLE,	\
+		.bit_idx = 4,				\
 	},						\
 	.pll_ops = &lpc18xx_ ##_pll_ops,		\
 }
@@ -593,6 +592,13 @@ static struct clk *lpc18xx_cgu_register_pll(struct lpc18xx_cgu_pll_clk *clk,
 	clk->gate.reg = base + clk->reg_offset + LPC18XX_CGU_PLL_CTRL_OFFSET;
 
 	lpc18xx_fill_parent_names(parents, clk->mux.table, clk->n_parents);
+
+	if (clk->clk_id == CLK_SRC_PLL1) {
+		return clk_register_composite(NULL, name, parents, clk->n_parents,
+					      &clk->mux.hw, &clk_mux_ops,
+					      &clk->pll.hw, clk->pll_ops,
+					      NULL, NULL, 0);
+	}
 
 	return clk_register_composite(NULL, name, parents, clk->n_parents,
 				      &clk->mux.hw, &clk_mux_ops,
