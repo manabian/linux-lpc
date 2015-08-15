@@ -556,6 +556,7 @@ static struct clk *lpc18xx_register_base_clk(struct lpc18xx_cgu_base_clk *clk,
 	void __iomem *reg = reg_base + LPC18XX_CGU_BASE_CLK(n);
 	const char *name = clk_base_names[clk->clk_id];
 	const char *parents[CLK_SRC_MAX];
+	unsigned long flags = 0;
 
 	if (clk->n_parents == 0)
 		return ERR_PTR(-ENOENT);
@@ -571,10 +572,13 @@ static struct clk *lpc18xx_register_base_clk(struct lpc18xx_cgu_base_clk *clk,
 					      &clk->mux.hw, &clk_mux_ops,
 					      NULL, NULL, NULL, NULL, 0);
 
+	if (clk->clk_id == BASE_USB0_CLK)
+		flags |= CLK_SET_RATE_PARENT;
+
 	return clk_register_composite(NULL, name, parents, clk->n_parents,
 				      &clk->mux.hw, &clk_mux_ops,
 				      NULL,  NULL,
-				      &clk->gate.hw, &lpc18xx_gate_ops, 0);
+				      &clk->gate.hw, &lpc18xx_gate_ops, flags);
 }
 
 
