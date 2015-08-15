@@ -377,13 +377,16 @@ static long lpc18xx_pll0_round_rate(struct clk_hw *hw, unsigned long rate,
 {
 	unsigned long m;
 
-	if (*prate < rate) {
+	if (*prate == 0)
+		return 0;
+
+	if (rate < *prate) {
 		pr_warn("%s: pll dividers not supported\n", __func__);
 		return -EINVAL;
 	}
 
-	m = DIV_ROUND_UP_ULL(*prate, rate * 2);
-	if (m <= 0 && m > LPC18XX_PLL0_MSEL_MAX) {
+	m = DIV_ROUND_UP_ULL(rate, *prate * 2);
+	if (m <= 0 || m > LPC18XX_PLL0_MSEL_MAX) {
 		pr_warn("%s: unable to support rate %lu\n", __func__, rate);
 		return -EINVAL;
 	}
@@ -395,23 +398,26 @@ static int lpc18xx_pll0_set_rate(struct clk_hw *hw, unsigned long rate,
 				 unsigned long parent_rate)
 {
 	struct lpc18xx_pll *pll = to_lpc_pll(hw);
-	u32 ctrl, stat, m;
+	u32 ctrl, stat, mdiv, m;
 	int retry = 3;
 
-	if (parent_rate < rate) {
+	if (parent_rate == 0)
+		return 0;
+
+	if (rate < parent_rate) {
 		pr_warn("%s: pll dividers not supported\n", __func__);
 		return -EINVAL;
 	}
 
-	m = DIV_ROUND_UP_ULL(parent_rate, rate * 2);
-	if (m <= 0 && m > LPC18XX_PLL0_MSEL_MAX) {
+	m = DIV_ROUND_UP_ULL(rate, parent_rate * 2);
+	if (m <= 0 || m > LPC18XX_PLL0_MSEL_MAX) {
 		pr_warn("%s: unable to support rate %lu\n", __func__, rate);
 		return -EINVAL;
 	}
 
-	m  = lpc18xx_pll0_msel2mdec(m);
-	m |= lpc18xx_pll0_msel2selp(m) << LPC18XX_PLL0_MDIV_SELP_SHIFT;
-	m |= lpc18xx_pll0_msel2seli(m) << LPC18XX_PLL0_MDIV_SELI_SHIFT;
+	mdiv = lpc18xx_pll0_msel2mdec(m);
+	mdiv |= lpc18xx_pll0_msel2selp(m) << LPC18XX_PLL0_MDIV_SELP_SHIFT;
+	mdiv |= lpc18xx_pll0_msel2seli(m) << LPC18XX_PLL0_MDIV_SELI_SHIFT;
 
 	/* Power down PLL, disable clk output and dividers */
 	ctrl = clk_readl(pll->reg + LPC18XX_CGU_PLL0USB_CTRL);
@@ -421,7 +427,7 @@ static int lpc18xx_pll0_set_rate(struct clk_hw *hw, unsigned long rate,
 	clk_writel(ctrl, pll->reg + LPC18XX_CGU_PLL0USB_CTRL);
 
 	/* Configure new PLL settings */
-	clk_writel(m, pll->reg + LPC18XX_CGU_PLL0USB_MDIV);
+	clk_writel(mdiv, pll->reg + LPC18XX_CGU_PLL0USB_MDIV);
 	clk_writel(LPC18XX_PLL0_NP_DIVS_1, pll->reg + LPC18XX_CGU_PLL0USB_NP_DIV);
 
 	/* Power up PLL and wait for lock */
@@ -430,12 +436,8 @@ static int lpc18xx_pll0_set_rate(struct clk_hw *hw, unsigned long rate,
 	do {
 		udelay(10);
 		stat = clk_readl(pll->reg + LPC18XX_CGU_PLL0USB_STAT);
-		if (stat & LPC18XX_PLL0_STAT_LOCK) {
-			ctrl |= LPC18XX_PLL0_CTRL_CLKEN;
-			clk_writel(ctrl, pll->reg + LPC18XX_CGU_PLL0USB_CTRL);
-
+		if (stat & LPC18XX_PLL0_STAT_LOCK)
 			return 0;
-		}
 	} while (retry--);
 
 	pr_warn("%s: unable to lock pll\n", __func__);
