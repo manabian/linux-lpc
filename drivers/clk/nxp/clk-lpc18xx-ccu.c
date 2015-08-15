@@ -27,6 +27,7 @@
 /* CCU branch feature bits */
 #define CCU_BRANCH_IS_BUS	BIT(0)
 #define CCU_BRANCH_HAVE_DIV2	BIT(1)
+#define CCU_BRANCH_SINGLE	BIT(2)
 
 struct lpc18xx_branch_clk_data {
 	const char **name;
@@ -56,7 +57,7 @@ static struct lpc18xx_clk_branch clk_branches[] = {
 	{"base_apb1_clk", "apb1_i2s",		CLK_APB1_I2S,		0},
 	{"base_apb1_clk", "apb1_can1",		CLK_APB1_CAN1,		0},
 
-	{"base_spifi_clk", "spifi",		CLK_SPIFI,		0},
+	{"base_spifi_clk", "spifi",		CLK_SPIFI,		CCU_BRANCH_SINGLE},
 
 	{"base_cpu_clk", "cpu_bus",		CLK_CPU_BUS,		CCU_BRANCH_IS_BUS},
 	{"base_cpu_clk", "cpu_spifi",		CLK_CPU_SPIFI,		0},
@@ -96,19 +97,19 @@ static struct lpc18xx_clk_branch clk_branches[] = {
 	{"base_periph_clk", "periph_core",	CLK_PERIPH_CORE,	0},
 	{"base_periph_clk", "periph_sgpio",	CLK_PERIPH_SGPIO,	0},
 
-	{"base_usb0_clk",  "usb0",		CLK_USB0,		0},
-	{"base_usb1_clk",  "usb1",		CLK_USB1,		0},
-	{"base_spi_clk",   "spi",		CLK_SPI,		0},
-	{"base_adchs_clk", "adchs",		CLK_ADCHS,		0},
+	{"base_usb0_clk",  "usb0",		CLK_USB0,		CCU_BRANCH_SINGLE},
+	{"base_usb1_clk",  "usb1",		CLK_USB1,		CCU_BRANCH_SINGLE},
+	{"base_spi_clk",   "spi",		CLK_SPI,		CCU_BRANCH_SINGLE},
+	{"base_adchs_clk", "adchs",		CLK_ADCHS,		CCU_BRANCH_SINGLE},
 
-	{"base_audio_clk", "audio",		CLK_AUDIO,		0},
-	{"base_uart3_clk", "apb2_uart3",	CLK_APB2_UART3,		0},
-	{"base_uart2_clk", "apb2_uart2",	CLK_APB2_UART2,		0},
-	{"base_uart1_clk", "apb0_uart1",	CLK_APB0_UART1,		0},
-	{"base_uart0_clk", "apb0_uart0",	CLK_APB0_UART0,		0},
-	{"base_ssp1_clk",  "apb2_ssp1",		CLK_APB2_SSP1,		0},
-	{"base_ssp0_clk",  "apb0_ssp0",		CLK_APB0_SSP0,		0},
-	{"base_sdio_clk",  "sdio",		CLK_SDIO,		0},
+	{"base_audio_clk", "audio",		CLK_AUDIO,		CCU_BRANCH_SINGLE},
+	{"base_uart3_clk", "apb2_uart3",	CLK_APB2_UART3,		CCU_BRANCH_SINGLE},
+	{"base_uart2_clk", "apb2_uart2",	CLK_APB2_UART2,		CCU_BRANCH_SINGLE},
+	{"base_uart1_clk", "apb0_uart1",	CLK_APB0_UART1,		CCU_BRANCH_SINGLE},
+	{"base_uart0_clk", "apb0_uart0",	CLK_APB0_UART0,		CCU_BRANCH_SINGLE},
+	{"base_ssp1_clk",  "apb2_ssp1",		CLK_APB2_SSP1,		CCU_BRANCH_SINGLE},
+	{"base_ssp0_clk",  "apb0_ssp0",		CLK_APB0_SSP0,		CCU_BRANCH_SINGLE},
+	{"base_sdio_clk",  "sdio",		CLK_SDIO,		CCU_BRANCH_SINGLE},
 };
 
 static struct clk *lpc18xx_ccu_branch_clk_get(struct of_phandle_args *clkspec,
@@ -208,6 +209,7 @@ static void lpc18xx_ccu_register_branch_gate_div(struct lpc18xx_clk_branch *bran
 	const struct clk_ops *div_ops = NULL;
 	struct clk_divider *div = NULL;
 	struct clk_hw *div_hw = NULL;
+	unsigned long flags = 0;
 
 	if (branch->flags & CCU_BRANCH_HAVE_DIV2) {
 		div = kzalloc(sizeof(*div), GFP_KERNEL);
@@ -223,13 +225,16 @@ static void lpc18xx_ccu_register_branch_gate_div(struct lpc18xx_clk_branch *bran
 		div_ops = &clk_divider_ro_ops;
 	}
 
+	if (branch->flags & CCU_BRANCH_SINGLE)
+		flags |= CLK_SET_RATE_PARENT;
+
 	branch->gate.reg = branch->offset + reg_base;
 	branch->gate.bit_idx = 0;
 
 	branch->clk = clk_register_composite(NULL, branch->name, &parent, 1,
 					     NULL, NULL,
 					     div_hw, div_ops,
-					     &branch->gate.hw, &lpc18xx_ccu_gate_ops, 0);
+					     &branch->gate.hw, &lpc18xx_ccu_gate_ops, flags);
 	if (IS_ERR(branch->clk)) {
 		kfree(div);
 		pr_warn("%s: failed to register %s\n", __func__, branch->name);
