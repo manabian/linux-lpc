@@ -616,8 +616,9 @@ static void __init lpc18xx_cgu_register_source_clks(struct device_node *np,
 	int i;
 
 	/* Register the internal 12 MHz RC oscillator (IRC) */
-	clk = clk_register_fixed_rate(NULL, clk_src_names[CLK_SRC_IRC],
-				      NULL, 0, 12000000);
+	clk = clk_register_fixed_rate_with_accuracy(NULL, clk_src_names[CLK_SRC_IRC],
+						    NULL, 0, 12000000,
+						    30000000);
 	if (IS_ERR(clk))
 		pr_warn("%s: failed to register irc clk\n", __func__);
 
