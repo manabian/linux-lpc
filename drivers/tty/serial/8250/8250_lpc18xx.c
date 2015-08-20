@@ -177,6 +177,7 @@ static int lpc18xx_serial_probe(struct platform_device *pdev)
 	uart.port.serial_out = lpc18xx_uart_serial_out;
 
 	uart.dma = &data->dma;
+	uart.dma->rx_size = 8;
 	uart.dma->rxconf.src_maxburst = 1;
 	uart.dma->txconf.dst_maxburst = 1;
 
