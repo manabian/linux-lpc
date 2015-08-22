@@ -866,6 +866,7 @@ config ARCH_LPC18XX
 	select ARCH_HAS_RESET_CONTROLLER
 	select ARM_AMBA
 	select CLKSRC_LPC32XX
+	select LPC18XX_GPIO_PINT
 	select PINCTRL
 	help
 	  Support for NXP's LPC18xx Cortex-M3 and LPC43xx Cortex-M4
