@@ -477,6 +477,11 @@
 	pinctrl-0 = <&i2c0_pins>;
 	clock-frequency = <400000>;
 
+	uda1380: uda1380@1a {
+		compatible = "nxp,uda1380";
+		reg = <0x1a>;
+	};
+
 	mma7455@1d {
 		compatible = "fsl,mma7455";
 		reg = <0x1d>;
@@ -485,6 +490,12 @@
 	lm75@48 {
 		compatible = "nxp,lm75";
 		reg = <0x48>;
+	};
+
+	eeprom@50 {
+		/* microchip,24aa02e48 */
+		compatible = "microchip,24c02";
+		reg = <0x50>;
 	};
 
 	eeprom@57 {
