@@ -346,65 +346,64 @@ static int gmac_clk_init(struct rk_priv_data *bsp_priv)
 	return 0;
 }
 
-static int gmac_clk_enable(struct rk_priv_data *bsp_priv, bool enable)
+static int rk_gmac_clk_enable(struct rk_priv_data *bsp_priv)
 {
 	int phy_iface = bsp_priv->phy_iface;
 
-	if (enable) {
-		if (!bsp_priv->clk_enabled) {
-			if (phy_iface == PHY_INTERFACE_MODE_RMII) {
-				if (!IS_ERR(bsp_priv->mac_clk_rx))
-					clk_prepare_enable(
-						bsp_priv->mac_clk_rx);
+	if (!bsp_priv->clk_enabled) {
+		if (phy_iface == PHY_INTERFACE_MODE_RMII) {
+			if (!IS_ERR(bsp_priv->mac_clk_rx))
+				clk_prepare_enable(bsp_priv->mac_clk_rx);
 
-				if (!IS_ERR(bsp_priv->clk_mac_ref))
-					clk_prepare_enable(
-						bsp_priv->clk_mac_ref);
+			if (!IS_ERR(bsp_priv->clk_mac_ref))
+				clk_prepare_enable(bsp_priv->clk_mac_ref);
 
-				if (!IS_ERR(bsp_priv->clk_mac_refout))
-					clk_prepare_enable(
-						bsp_priv->clk_mac_refout);
-			}
-
-			if (!IS_ERR(bsp_priv->aclk_mac))
-				clk_prepare_enable(bsp_priv->aclk_mac);
-
-			if (!IS_ERR(bsp_priv->pclk_mac))
-				clk_prepare_enable(bsp_priv->pclk_mac);
-
-			if (!IS_ERR(bsp_priv->mac_clk_tx))
-				clk_prepare_enable(bsp_priv->mac_clk_tx);
-
-			mdelay(5);
-			bsp_priv->clk_enabled = true;
+			if (!IS_ERR(bsp_priv->clk_mac_refout))
+				clk_prepare_enable(bsp_priv->clk_mac_refout);
 		}
-	} else {
-		if (bsp_priv->clk_enabled) {
-			if (phy_iface == PHY_INTERFACE_MODE_RMII) {
-				if (!IS_ERR(bsp_priv->mac_clk_rx))
-					clk_disable_unprepare(
-						bsp_priv->mac_clk_rx);
 
-				if (!IS_ERR(bsp_priv->clk_mac_ref))
-					clk_disable_unprepare(
-						bsp_priv->clk_mac_ref);
+		if (!IS_ERR(bsp_priv->aclk_mac))
+			clk_prepare_enable(bsp_priv->aclk_mac);
 
-				if (!IS_ERR(bsp_priv->clk_mac_refout))
-					clk_disable_unprepare(
-						bsp_priv->clk_mac_refout);
-			}
+		if (!IS_ERR(bsp_priv->pclk_mac))
+			clk_prepare_enable(bsp_priv->pclk_mac);
 
-			if (!IS_ERR(bsp_priv->aclk_mac))
-				clk_disable_unprepare(bsp_priv->aclk_mac);
+		if (!IS_ERR(bsp_priv->mac_clk_tx))
+			clk_prepare_enable(bsp_priv->mac_clk_tx);
 
-			if (!IS_ERR(bsp_priv->pclk_mac))
-				clk_disable_unprepare(bsp_priv->pclk_mac);
+		mdelay(5);
+		bsp_priv->clk_enabled = true;
+	}
 
-			if (!IS_ERR(bsp_priv->mac_clk_tx))
-				clk_disable_unprepare(bsp_priv->mac_clk_tx);
+	return 0;
+}
 
-			bsp_priv->clk_enabled = false;
+static int rk_gmac_clk_disable(struct rk_priv_data *bsp_priv)
+{
+	int phy_iface = bsp_priv->phy_iface;
+
+	if (bsp_priv->clk_enabled) {
+		if (phy_iface == PHY_INTERFACE_MODE_RMII) {
+			if (!IS_ERR(bsp_priv->mac_clk_rx))
+				clk_disable_unprepare(bsp_priv->mac_clk_rx);
+
+			if (!IS_ERR(bsp_priv->clk_mac_ref))
+				clk_disable_unprepare(bsp_priv->clk_mac_ref);
+
+			if (!IS_ERR(bsp_priv->clk_mac_refout))
+				clk_disable_unprepare(bsp_priv->clk_mac_refout);
 		}
+
+		if (!IS_ERR(bsp_priv->aclk_mac))
+			clk_disable_unprepare(bsp_priv->aclk_mac);
+
+		if (!IS_ERR(bsp_priv->pclk_mac))
+			clk_disable_unprepare(bsp_priv->pclk_mac);
+
+		if (!IS_ERR(bsp_priv->mac_clk_tx))
+			clk_disable_unprepare(bsp_priv->mac_clk_tx);
+
+		bsp_priv->clk_enabled = false;
 	}
 
 	return 0;
@@ -525,7 +524,7 @@ static int rk_gmac_init(struct platform_device *pdev, void *priv)
 	if (ret)
 		return ret;
 
-	ret = gmac_clk_enable(bsp_priv, true);
+	ret = rk_gmac_clk_enable(bsp_priv);
 	if (ret)
 		return ret;
 
@@ -537,7 +536,7 @@ static void rk_gmac_exit(struct platform_device *pdev, void *priv)
 	struct rk_priv_data *gmac = priv;
 
 	phy_power_on(gmac, false);
-	gmac_clk_enable(gmac, false);
+	rk_gmac_clk_disable(gmac);
 }
 
 static void rk_fix_speed(void *priv, unsigned int speed)
