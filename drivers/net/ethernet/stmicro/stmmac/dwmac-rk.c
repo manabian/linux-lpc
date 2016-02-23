@@ -375,10 +375,6 @@ static int gmac_clk_enable(struct rk_priv_data *bsp_priv, bool enable)
 			if (!IS_ERR(bsp_priv->mac_clk_tx))
 				clk_prepare_enable(bsp_priv->mac_clk_tx);
 
-			/**
-			 * if (!IS_ERR(bsp_priv->clk_mac))
-			 *	clk_prepare_enable(bsp_priv->clk_mac);
-			 */
 			mdelay(5);
 			bsp_priv->clk_enabled = true;
 		}
@@ -406,10 +402,7 @@ static int gmac_clk_enable(struct rk_priv_data *bsp_priv, bool enable)
 
 			if (!IS_ERR(bsp_priv->mac_clk_tx))
 				clk_disable_unprepare(bsp_priv->mac_clk_tx);
-			/**
-			 * if (!IS_ERR(bsp_priv->clk_mac))
-			 *	clk_disable_unprepare(bsp_priv->clk_mac);
-			 */
+
 			bsp_priv->clk_enabled = false;
 		}
 	}
