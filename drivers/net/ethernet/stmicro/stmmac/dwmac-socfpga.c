@@ -279,6 +279,21 @@ static int socfpga_dwmac_probe(struct platform_device *pdev)
 	return stmmac_dvr_probe(&pdev->dev, plat_dat, &stmmac_res);
 }
 
+static int socfpga_dwmac_remove(struct platform_device *pdev)
+{
+	struct net_device *ndev = platform_get_drvdata(pdev);
+	struct socfpga_dwmac *dwmac = get_stmmac_bsp_priv(ndev);
+	int ret = stmmac_dvr_remove(ndev);
+
+	/* On socfpga platform remove, assert and hold reset to the
+	 * enet controller - the default state after a hard reset.
+	 */
+	if (dwmac->stmmac_rst)
+		reset_control_assert(dwmac->stmmac_rst);
+
+	return ret;
+}
+
 static const struct of_device_id socfpga_dwmac_match[] = {
 	{ .compatible = "altr,socfpga-stmmac" },
 	{ }
@@ -287,7 +302,7 @@ MODULE_DEVICE_TABLE(of, socfpga_dwmac_match);
 
 static struct platform_driver socfpga_dwmac_driver = {
 	.probe  = socfpga_dwmac_probe,
-	.remove = stmmac_pltfr_remove,
+	.remove = socfpga_dwmac_remove,
 	.driver = {
 		.name           = "socfpga-dwmac",
 		.pm		= &stmmac_pltfr_pm_ops,
