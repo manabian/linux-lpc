@@ -184,17 +184,6 @@ static int socfpga_dwmac_setup(struct socfpga_dwmac *dwmac)
 	return 0;
 }
 
-static void socfpga_dwmac_exit(struct platform_device *pdev, void *priv)
-{
-	struct socfpga_dwmac	*dwmac = priv;
-
-	/* On socfpga platform exit, assert and hold reset to the
-	 * enet controller - the default state after a hard reset.
-	 */
-	if (dwmac->stmmac_rst)
-		reset_control_assert(dwmac->stmmac_rst);
-}
-
 static int socfpga_dwmac_init(struct platform_device *pdev, void *priv)
 {
 	struct socfpga_dwmac	*dwmac = priv;
@@ -268,8 +257,6 @@ static int socfpga_dwmac_probe(struct platform_device *pdev)
 	}
 
 	plat_dat->bsp_priv = dwmac;
-	plat_dat->init = socfpga_dwmac_init;
-	plat_dat->exit = socfpga_dwmac_exit;
 	plat_dat->fix_mac_speed = socfpga_dwmac_fix_mac_speed;
 
 	ret = socfpga_dwmac_init(pdev, plat_dat->bsp_priv);
@@ -294,6 +281,34 @@ static int socfpga_dwmac_remove(struct platform_device *pdev)
 	return ret;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int socfpga_dwmac_suspend(struct device *dev)
+{
+	struct net_device *ndev = dev_get_drvdata(dev);
+	struct socfpga_dwmac *dwmac = get_stmmac_bsp_priv(ndev);
+	int ret = stmmac_suspend(ndev);
+
+	if (dwmac->stmmac_rst)
+		reset_control_assert(dwmac->stmmac_rst);
+
+	return ret;
+}
+
+static int socfpga_dwmac_resume(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct net_device *ndev = dev_get_drvdata(dev);
+	struct stmmac_priv *priv = netdev_priv(ndev);
+
+	socfpga_dwmac_init(pdev, priv->plat->bsp_priv);
+
+	return stmmac_resume(ndev);
+}
+#endif /* CONFIG_PM_SLEEP */
+
+SIMPLE_DEV_PM_OPS(socfpga_dwmac_pm_ops, socfpga_dwmac_suspend,
+					socfpga_dwmac_resume);
+
 static const struct of_device_id socfpga_dwmac_match[] = {
 	{ .compatible = "altr,socfpga-stmmac" },
 	{ }
@@ -305,7 +320,7 @@ static struct platform_driver socfpga_dwmac_driver = {
 	.remove = socfpga_dwmac_remove,
 	.driver = {
 		.name           = "socfpga-dwmac",
-		.pm		= &stmmac_pltfr_pm_ops,
+		.pm		= &socfpga_dwmac_pm_ops,
 		.of_match_table = socfpga_dwmac_match,
 	},
 };
