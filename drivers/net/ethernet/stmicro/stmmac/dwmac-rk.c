@@ -450,8 +450,7 @@ static struct rk_priv_data *rk_gmac_setup(struct platform_device *pdev,
 		dev_err(dev, "Can not read property: clock_in_out.\n");
 		bsp_priv->clock_input = true;
 	} else {
-		dev_info(dev, "clock input or output? (%s).\n",
-			 strings);
+		dev_info(dev, "clock input or output? (%s).\n", strings);
 		if (!strcmp(strings, "input"))
 			bsp_priv->clock_input = true;
 		else
@@ -462,8 +461,7 @@ static struct rk_priv_data *rk_gmac_setup(struct platform_device *pdev,
 	if (ret) {
 		bsp_priv->tx_delay = 0x30;
 		dev_err(dev, "Can not read property: tx_delay.");
-		dev_err(dev, "set tx_delay to 0x%x\n",
-			bsp_priv->tx_delay);
+		dev_err(dev, "set tx_delay to 0x%x\n", bsp_priv->tx_delay);
 	} else {
 		dev_info(dev, "TX delay(0x%x).\n", value);
 		bsp_priv->tx_delay = value;
@@ -473,8 +471,7 @@ static struct rk_priv_data *rk_gmac_setup(struct platform_device *pdev,
 	if (ret) {
 		bsp_priv->rx_delay = 0x10;
 		dev_err(dev, "Can not read property: rx_delay.");
-		dev_err(dev, "set rx_delay to 0x%x\n",
-			bsp_priv->rx_delay);
+		dev_err(dev, "set rx_delay to 0x%x\n", bsp_priv->rx_delay);
 	} else {
 		dev_info(dev, "RX delay(0x%x).\n", value);
 		bsp_priv->rx_delay = value;
