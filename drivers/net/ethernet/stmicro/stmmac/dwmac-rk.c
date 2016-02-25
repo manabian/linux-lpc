@@ -514,14 +514,6 @@ static int rk_gmac_init(struct platform_device *pdev, void *priv)
 	return 0;
 }
 
-static void rk_gmac_exit(struct platform_device *pdev, void *priv)
-{
-	struct rk_priv_data *gmac = priv;
-
-	phy_power_on(gmac, false);
-	rk_gmac_clk_disable(gmac);
-}
-
 static void rk_fix_speed(void *priv, unsigned int speed)
 {
 	struct rk_priv_data *bsp_priv = priv;
@@ -557,8 +549,6 @@ static int rk_gmac_probe(struct platform_device *pdev)
 		return PTR_ERR(plat_dat);
 
 	plat_dat->has_gmac = true;
-	plat_dat->init = rk_gmac_init;
-	plat_dat->exit = rk_gmac_exit;
 	plat_dat->fix_mac_speed = rk_fix_speed;
 
 	plat_dat->bsp_priv = rk_gmac_setup(pdev, data);
@@ -584,6 +574,34 @@ static int rk_gmac_remove(struct platform_device *pdev)
 	return ret;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int rk_gmac_suspend(struct device *dev)
+{
+	struct net_device *ndev = dev_get_drvdata(dev);
+	struct rk_priv_data *gmac = get_stmmac_bsp_priv(ndev);
+	int ret = stmmac_suspend(ndev);
+
+	phy_power_on(gmac, false);
+	rk_gmac_clk_disable(gmac);
+
+	return ret;
+}
+
+static int rk_gmac_resume(struct device *dev)
+{
+	struct net_device *ndev = dev_get_drvdata(dev);
+	struct rk_priv_data *gmac = get_stmmac_bsp_priv(ndev);
+	struct platform_device *pdev = to_platform_device(dev);
+
+	rk_gmac_init(pdev, gmac);
+
+	return stmmac_resume(ndev);
+}
+#endif /* CONFIG_PM_SLEEP */
+
+SIMPLE_DEV_PM_OPS(rk_gmac_pm_ops, rk_gmac_suspend,
+				  rk_gmac_resume);
+
 static const struct of_device_id rk_gmac_dwmac_match[] = {
 	{ .compatible = "rockchip,rk3288-gmac", .data = &rk3288_ops },
 	{ .compatible = "rockchip,rk3368-gmac", .data = &rk3368_ops },
@@ -596,7 +614,7 @@ static struct platform_driver rk_gmac_dwmac_driver = {
 	.remove = rk_gmac_remove,
 	.driver = {
 		.name           = "rk_gmac-dwmac",
-		.pm		= &stmmac_pltfr_pm_ops,
+		.pm		= &rk_gmac_pm_ops,
 		.of_match_table = rk_gmac_dwmac_match,
 	},
 };
