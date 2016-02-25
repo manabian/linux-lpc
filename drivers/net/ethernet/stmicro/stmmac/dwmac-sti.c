@@ -229,9 +229,8 @@ static void stid127_fix_retime_src(void *priv, u32 spd)
 	regmap_update_bits(dwmac->regmap, reg, STID127_RETIME_SRC_MASK, val);
 }
 
-static int sti_dwmac_init(struct platform_device *pdev, void *priv)
+static int sti_dwmac_set_phy_mode(struct sti_dwmac *dwmac)
 {
-	struct sti_dwmac *dwmac = priv;
 	struct regmap *regmap = dwmac->regmap;
 	int iface = dwmac->interface;
 	u32 reg = dwmac->ctrl_reg;
@@ -245,7 +244,7 @@ static int sti_dwmac_init(struct platform_device *pdev, void *priv)
 	val = (iface == PHY_INTERFACE_MODE_REVMII) ? 0 : ENMII;
 	regmap_update_bits(regmap, reg, ENMII_MASK, val);
 
-	dwmac->fix_retime_src(priv, dwmac->speed);
+	dwmac->fix_retime_src(dwmac, dwmac->speed);
 
 	return 0;
 }
@@ -350,7 +349,7 @@ static int sti_dwmac_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	ret = sti_dwmac_init(pdev, plat_dat->bsp_priv);
+	ret = sti_dwmac_set_phy_mode(dwmac);
 	if (ret)
 		goto disable_clk;
 
@@ -392,11 +391,9 @@ static int sti_dwmac_resume(struct device *dev)
 {
 	struct net_device *ndev = dev_get_drvdata(dev);
 	struct sti_dwmac *dwmac = get_stmmac_bsp_priv(ndev);
-	struct stmmac_priv *priv = netdev_priv(ndev);
-	struct platform_device *pdev = to_platform_device(dev);
 
 	clk_prepare_enable(dwmac->clk);
-	sti_dwmac_init(pdev, priv->plat->bsp_priv);
+	sti_dwmac_set_phy_mode(dwmac);
 
 	return stmmac_resume(ndev);
 }
