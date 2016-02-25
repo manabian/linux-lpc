@@ -253,12 +253,6 @@ static int sti_dwmac_init(struct platform_device *pdev, void *priv)
 	return 0;
 }
 
-static void sti_dwmac_exit(struct platform_device *pdev, void *priv)
-{
-	struct sti_dwmac *dwmac = priv;
-
-	clk_disable_unprepare(dwmac->clk);
-}
 static int sti_dwmac_parse_data(struct sti_dwmac *dwmac,
 				struct platform_device *pdev)
 {
@@ -352,8 +346,6 @@ static int sti_dwmac_probe(struct platform_device *pdev)
 	dwmac->fix_retime_src = data->fix_retime_src;
 
 	plat_dat->bsp_priv = dwmac;
-	plat_dat->init = sti_dwmac_init;
-	plat_dat->exit = sti_dwmac_exit;
 	plat_dat->fix_mac_speed = data->fix_retime_src;
 
 	ret = sti_dwmac_init(pdev, plat_dat->bsp_priv);
@@ -373,6 +365,33 @@ static int sti_dwmac_remove(struct platform_device *pdev)
 
 	return ret;
 }
+
+#ifdef CONFIG_PM_SLEEP
+static int sti_dwmac_suspend(struct device *dev)
+{
+	struct net_device *ndev = dev_get_drvdata(dev);
+	struct sti_dwmac *dwmac = get_stmmac_bsp_priv(ndev);
+	int ret = stmmac_suspend(ndev);
+
+	clk_disable_unprepare(dwmac->clk);
+
+	return ret;
+}
+
+static int sti_dwmac_resume(struct device *dev)
+{
+	struct net_device *ndev = dev_get_drvdata(dev);
+	struct stmmac_priv *priv = netdev_priv(ndev);
+	struct platform_device *pdev = to_platform_device(dev);
+
+	sti_dwmac_init(pdev, priv->plat->bsp_priv);
+
+	return stmmac_resume(ndev);
+}
+#endif /* CONFIG_PM_SLEEP */
+
+SIMPLE_DEV_PM_OPS(sti_dwmac_pm_ops, sti_dwmac_suspend,
+				    sti_dwmac_resume);
 
 static const struct sti_dwmac_of_data stih4xx_dwmac_data = {
 	.fix_retime_src = stih4xx_fix_retime_src,
@@ -396,7 +415,7 @@ static struct platform_driver sti_dwmac_driver = {
 	.remove = sti_dwmac_remove,
 	.driver = {
 		.name           = "sti-dwmac",
-		.pm		= &stmmac_pltfr_pm_ops,
+		.pm		= &sti_dwmac_pm_ops,
 		.of_match_table = sti_dwmac_match,
 	},
 };
