@@ -498,22 +498,6 @@ static struct rk_priv_data *rk_gmac_setup(struct platform_device *pdev,
 	return bsp_priv;
 }
 
-static int rk_gmac_init(struct platform_device *pdev, void *priv)
-{
-	struct rk_priv_data *bsp_priv = priv;
-	int ret;
-
-	ret = phy_power_on(bsp_priv, true);
-	if (ret)
-		return ret;
-
-	ret = rk_gmac_clk_enable(bsp_priv);
-	if (ret)
-		return ret;
-
-	return 0;
-}
-
 static void rk_fix_speed(void *priv, unsigned int speed)
 {
 	struct rk_priv_data *bsp_priv = priv;
@@ -555,7 +539,11 @@ static int rk_gmac_probe(struct platform_device *pdev)
 	if (IS_ERR(plat_dat->bsp_priv))
 		return PTR_ERR(plat_dat->bsp_priv);
 
-	ret = rk_gmac_init(pdev, plat_dat->bsp_priv);
+	ret = phy_power_on(plat_dat->bsp_priv, true);
+	if (ret)
+		return ret;
+
+	ret = rk_gmac_clk_enable(plat_dat->bsp_priv);
 	if (ret)
 		return ret;
 
@@ -591,9 +579,9 @@ static int rk_gmac_resume(struct device *dev)
 {
 	struct net_device *ndev = dev_get_drvdata(dev);
 	struct rk_priv_data *gmac = get_stmmac_bsp_priv(ndev);
-	struct platform_device *pdev = to_platform_device(dev);
 
-	rk_gmac_init(pdev, gmac);
+	phy_power_on(gmac, true);
+	rk_gmac_clk_enable(gmac);
 
 	return stmmac_resume(ndev);
 }
