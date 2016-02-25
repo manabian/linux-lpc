@@ -572,6 +572,18 @@ static int rk_gmac_probe(struct platform_device *pdev)
 	return stmmac_dvr_probe(&pdev->dev, plat_dat, &stmmac_res);
 }
 
+static int rk_gmac_remove(struct platform_device *pdev)
+{
+	struct net_device *ndev = platform_get_drvdata(pdev);
+	struct rk_priv_data *gmac = get_stmmac_bsp_priv(ndev);
+	int ret = stmmac_dvr_remove(ndev);
+
+	phy_power_on(gmac, false);
+	rk_gmac_clk_disable(gmac);
+
+	return ret;
+}
+
 static const struct of_device_id rk_gmac_dwmac_match[] = {
 	{ .compatible = "rockchip,rk3288-gmac", .data = &rk3288_ops },
 	{ .compatible = "rockchip,rk3368-gmac", .data = &rk3368_ops },
@@ -581,7 +593,7 @@ MODULE_DEVICE_TABLE(of, rk_gmac_dwmac_match);
 
 static struct platform_driver rk_gmac_dwmac_driver = {
 	.probe  = rk_gmac_probe,
-	.remove = stmmac_pltfr_remove,
+	.remove = rk_gmac_remove,
 	.driver = {
 		.name           = "rk_gmac-dwmac",
 		.pm		= &stmmac_pltfr_pm_ops,
