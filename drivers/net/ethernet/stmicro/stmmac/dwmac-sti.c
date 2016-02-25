@@ -363,6 +363,17 @@ static int sti_dwmac_probe(struct platform_device *pdev)
 	return stmmac_dvr_probe(&pdev->dev, plat_dat, &stmmac_res);
 }
 
+static int sti_dwmac_remove(struct platform_device *pdev)
+{
+	struct net_device *ndev = platform_get_drvdata(pdev);
+	struct sti_dwmac *dwmac = get_stmmac_bsp_priv(ndev);
+	int ret = stmmac_dvr_remove(ndev);
+
+	clk_disable_unprepare(dwmac->clk);
+
+	return ret;
+}
+
 static const struct sti_dwmac_of_data stih4xx_dwmac_data = {
 	.fix_retime_src = stih4xx_fix_retime_src,
 };
@@ -382,7 +393,7 @@ MODULE_DEVICE_TABLE(of, sti_dwmac_match);
 
 static struct platform_driver sti_dwmac_driver = {
 	.probe  = sti_dwmac_probe,
-	.remove = stmmac_pltfr_remove,
+	.remove = sti_dwmac_remove,
 	.driver = {
 		.name           = "sti-dwmac",
 		.pm		= &stmmac_pltfr_pm_ops,
