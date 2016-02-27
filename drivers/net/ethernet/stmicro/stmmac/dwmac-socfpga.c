@@ -142,13 +142,17 @@ static int socfpga_dwmac_parse_data(struct socfpga_dwmac *dwmac, struct device *
 	return 0;
 }
 
-static int socfpga_dwmac_setup(struct socfpga_dwmac *dwmac)
+static int socfpga_dwmac_set_phy_mode(struct socfpga_dwmac *dwmac)
 {
 	struct regmap *sys_mgr_base_addr = dwmac->sys_mgr_base_addr;
 	int phymode = dwmac->interface;
 	u32 reg_offset = dwmac->reg_offset;
 	u32 reg_shift = dwmac->reg_shift;
 	u32 ctrl, val;
+
+	/* Assert reset to the enet controller before changing the phy mode */
+	if (dwmac->stmmac_rst)
+		reset_control_assert(dwmac->stmmac_rst);
 
 	switch (phymode) {
 	case PHY_INTERFACE_MODE_RGMII:
@@ -181,38 +185,6 @@ static int socfpga_dwmac_setup(struct socfpga_dwmac *dwmac)
 		ctrl &= ~(SYSMGR_EMACGRP_CTRL_PTP_REF_CLK_MASK << (reg_shift / 2));
 
 	regmap_write(sys_mgr_base_addr, reg_offset, ctrl);
-	return 0;
-}
-
-static void socfpga_dwmac_exit(struct platform_device *pdev, void *priv)
-{
-	struct socfpga_dwmac	*dwmac = priv;
-
-	/* On socfpga platform exit, assert and hold reset to the
-	 * enet controller - the default state after a hard reset.
-	 */
-	if (dwmac->stmmac_rst)
-		reset_control_assert(dwmac->stmmac_rst);
-}
-
-static int socfpga_dwmac_init(struct platform_device *pdev, void *priv)
-{
-	struct socfpga_dwmac	*dwmac = priv;
-	struct net_device *ndev = platform_get_drvdata(pdev);
-	struct stmmac_priv *stpriv = NULL;
-	int ret = 0;
-
-	if (ndev)
-		stpriv = netdev_priv(ndev);
-
-	/* Assert reset to the enet controller before changing the phy mode */
-	if (dwmac->stmmac_rst)
-		reset_control_assert(dwmac->stmmac_rst);
-
-	/* Setup the phy mode in the system manager registers according to
-	 * devicetree configuration
-	 */
-	ret = socfpga_dwmac_setup(dwmac);
 
 	/* Deassert reset for the phy configuration to be sampled by
 	 * the enet controller, and operation to start in requested mode
@@ -220,25 +192,7 @@ static int socfpga_dwmac_init(struct platform_device *pdev, void *priv)
 	if (dwmac->stmmac_rst)
 		reset_control_deassert(dwmac->stmmac_rst);
 
-	/* Before the enet controller is suspended, the phy is suspended.
-	 * This causes the phy clock to be gated. The enet controller is
-	 * resumed before the phy, so the clock is still gated "off" when
-	 * the enet controller is resumed. This code makes sure the phy
-	 * is "resumed" before reinitializing the enet controller since
-	 * the enet controller depends on an active phy clock to complete
-	 * a DMA reset. A DMA reset will "time out" if executed
-	 * with no phy clock input on the Synopsys enet controller.
-	 * Verified through Synopsys Case #8000711656.
-	 *
-	 * Note that the phy clock is also gated when the phy is isolated.
-	 * Phy "suspend" and "isolate" controls are located in phy basic
-	 * control register 0, and can be modified by the phy driver
-	 * framework.
-	 */
-	if (stpriv && stpriv->phydev)
-		phy_resume(stpriv->phydev);
-
-	return ret;
+	return 0;
 }
 
 static int socfpga_dwmac_probe(struct platform_device *pdev)
@@ -267,23 +221,75 @@ static int socfpga_dwmac_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = socfpga_dwmac_setup(dwmac);
-	if (ret) {
-		dev_err(dev, "couldn't setup SoC glue (%d)\n", ret);
-		return ret;
-	}
-
 	plat_dat->bsp_priv = dwmac;
-	plat_dat->init = socfpga_dwmac_init;
-	plat_dat->exit = socfpga_dwmac_exit;
 	plat_dat->fix_mac_speed = socfpga_dwmac_fix_mac_speed;
 
-	ret = socfpga_dwmac_init(pdev, plat_dat->bsp_priv);
+	ret = socfpga_dwmac_set_phy_mode(dwmac);
 	if (ret)
 		return ret;
 
 	return stmmac_dvr_probe(&pdev->dev, plat_dat, &stmmac_res);
 }
+
+static int socfpga_dwmac_remove(struct platform_device *pdev)
+{
+	struct net_device *ndev = platform_get_drvdata(pdev);
+	struct socfpga_dwmac *dwmac = get_stmmac_bsp_priv(ndev);
+	int ret = stmmac_dvr_remove(ndev);
+
+	/* On socfpga platform remove, assert and hold reset to the
+	 * enet controller - the default state after a hard reset.
+	 */
+	if (dwmac->stmmac_rst)
+		reset_control_assert(dwmac->stmmac_rst);
+
+	return ret;
+}
+
+#ifdef CONFIG_PM_SLEEP
+static int socfpga_dwmac_suspend(struct device *dev)
+{
+	struct net_device *ndev = dev_get_drvdata(dev);
+	struct socfpga_dwmac *dwmac = get_stmmac_bsp_priv(ndev);
+	int ret = stmmac_suspend(ndev);
+
+	if (dwmac->stmmac_rst)
+		reset_control_assert(dwmac->stmmac_rst);
+
+	return ret;
+}
+
+static int socfpga_dwmac_resume(struct device *dev)
+{
+	struct net_device *ndev = dev_get_drvdata(dev);
+	struct stmmac_priv *priv = netdev_priv(ndev);
+
+	socfpga_dwmac_set_phy_mode(priv->plat->bsp_priv);
+
+	/* Before the enet controller is suspended, the phy is suspended.
+	 * This causes the phy clock to be gated. The enet controller is
+	 * resumed before the phy, so the clock is still gated "off" when
+	 * the enet controller is resumed. This code makes sure the phy
+	 * is "resumed" before reinitializing the enet controller since
+	 * the enet controller depends on an active phy clock to complete
+	 * a DMA reset. A DMA reset will "time out" if executed
+	 * with no phy clock input on the Synopsys enet controller.
+	 * Verified through Synopsys Case #8000711656.
+	 *
+	 * Note that the phy clock is also gated when the phy is isolated.
+	 * Phy "suspend" and "isolate" controls are located in phy basic
+	 * control register 0, and can be modified by the phy driver
+	 * framework.
+	 */
+	if (priv->phydev)
+		phy_resume(priv->phydev);
+
+	return stmmac_resume(ndev);
+}
+#endif /* CONFIG_PM_SLEEP */
+
+SIMPLE_DEV_PM_OPS(socfpga_dwmac_pm_ops, socfpga_dwmac_suspend,
+					socfpga_dwmac_resume);
 
 static const struct of_device_id socfpga_dwmac_match[] = {
 	{ .compatible = "altr,socfpga-stmmac" },
@@ -293,10 +299,10 @@ MODULE_DEVICE_TABLE(of, socfpga_dwmac_match);
 
 static struct platform_driver socfpga_dwmac_driver = {
 	.probe  = socfpga_dwmac_probe,
-	.remove = stmmac_pltfr_remove,
+	.remove = socfpga_dwmac_remove,
 	.driver = {
 		.name           = "socfpga-dwmac",
-		.pm		= &stmmac_pltfr_pm_ops,
+		.pm		= &socfpga_dwmac_pm_ops,
 		.of_match_table = socfpga_dwmac_match,
 	},
 };
