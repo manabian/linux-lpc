@@ -48,7 +48,6 @@ struct rk_priv_data {
 	struct regulator *regulator;
 	const struct rk_gmac_ops *ops;
 
-	bool clk_enabled;
 	bool clock_input;
 
 	struct clk *clk_mac;
@@ -300,45 +299,37 @@ static int gmac_clk_init(struct rk_priv_data *bsp_priv)
 {
 	struct device *dev = &bsp_priv->pdev->dev;
 
-	bsp_priv->clk_enabled = false;
-
 	bsp_priv->mac_clk_rx = devm_clk_get(dev, "mac_clk_rx");
 	if (IS_ERR(bsp_priv->mac_clk_rx))
-		dev_err(dev, "cannot get clock %s\n",
-			"mac_clk_rx");
+		dev_err(dev, "cannot get clock mac_clk_rx\n");
 
 	bsp_priv->mac_clk_tx = devm_clk_get(dev, "mac_clk_tx");
 	if (IS_ERR(bsp_priv->mac_clk_tx))
-		dev_err(dev, "cannot get clock %s\n",
-			"mac_clk_tx");
+		dev_err(dev, "cannot get clock mac_clk_tx\n");
 
 	bsp_priv->aclk_mac = devm_clk_get(dev, "aclk_mac");
 	if (IS_ERR(bsp_priv->aclk_mac))
-		dev_err(dev, "cannot get clock %s\n",
-			"aclk_mac");
+		dev_err(dev, "cannot get clock aclk_mac\n");
 
 	bsp_priv->pclk_mac = devm_clk_get(dev, "pclk_mac");
 	if (IS_ERR(bsp_priv->pclk_mac))
-		dev_err(dev, "cannot get clock %s\n",
-			"pclk_mac");
+		dev_err(dev, "cannot get clock pclk_mac\n");
 
 	bsp_priv->clk_mac = devm_clk_get(dev, "stmmaceth");
 	if (IS_ERR(bsp_priv->clk_mac))
-		dev_err(dev, "cannot get clock %s\n",
-			"stmmaceth");
+		dev_err(dev, "cannot get clock stmmaceth\n");
 
 	if (bsp_priv->phy_iface == PHY_INTERFACE_MODE_RMII) {
 		bsp_priv->clk_mac_ref = devm_clk_get(dev, "clk_mac_ref");
 		if (IS_ERR(bsp_priv->clk_mac_ref))
-			dev_err(dev, "cannot get clock %s\n",
-				"clk_mac_ref");
+			dev_err(dev, "cannot get clock clk_mac_ref\n");
 
 		if (!bsp_priv->clock_input) {
 			bsp_priv->clk_mac_refout =
 				devm_clk_get(dev, "clk_mac_refout");
 			if (IS_ERR(bsp_priv->clk_mac_refout))
-				dev_err(dev, "cannot get clock %s\n",
-					"clk_mac_refout");
+				dev_err(dev,
+					"cannot get clock clk_mac_refout\n");
 		}
 	}
 
@@ -352,73 +343,54 @@ static int gmac_clk_init(struct rk_priv_data *bsp_priv)
 	return 0;
 }
 
-static int gmac_clk_enable(struct rk_priv_data *bsp_priv, bool enable)
+static int rk_gmac_clk_enable(struct rk_priv_data *bsp_priv)
 {
-	int phy_iface = bsp_priv->phy_iface;
+	if (bsp_priv->phy_iface == PHY_INTERFACE_MODE_RMII) {
+		if (!IS_ERR(bsp_priv->mac_clk_rx))
+			clk_prepare_enable(bsp_priv->mac_clk_rx);
 
-	if (enable) {
-		if (!bsp_priv->clk_enabled) {
-			if (phy_iface == PHY_INTERFACE_MODE_RMII) {
-				if (!IS_ERR(bsp_priv->mac_clk_rx))
-					clk_prepare_enable(
-						bsp_priv->mac_clk_rx);
+		if (!IS_ERR(bsp_priv->clk_mac_ref))
+			clk_prepare_enable(bsp_priv->clk_mac_ref);
 
-				if (!IS_ERR(bsp_priv->clk_mac_ref))
-					clk_prepare_enable(
-						bsp_priv->clk_mac_ref);
-
-				if (!IS_ERR(bsp_priv->clk_mac_refout))
-					clk_prepare_enable(
-						bsp_priv->clk_mac_refout);
-			}
-
-			if (!IS_ERR(bsp_priv->aclk_mac))
-				clk_prepare_enable(bsp_priv->aclk_mac);
-
-			if (!IS_ERR(bsp_priv->pclk_mac))
-				clk_prepare_enable(bsp_priv->pclk_mac);
-
-			if (!IS_ERR(bsp_priv->mac_clk_tx))
-				clk_prepare_enable(bsp_priv->mac_clk_tx);
-
-			/**
-			 * if (!IS_ERR(bsp_priv->clk_mac))
-			 *	clk_prepare_enable(bsp_priv->clk_mac);
-			 */
-			mdelay(5);
-			bsp_priv->clk_enabled = true;
-		}
-	} else {
-		if (bsp_priv->clk_enabled) {
-			if (phy_iface == PHY_INTERFACE_MODE_RMII) {
-				if (!IS_ERR(bsp_priv->mac_clk_rx))
-					clk_disable_unprepare(
-						bsp_priv->mac_clk_rx);
-
-				if (!IS_ERR(bsp_priv->clk_mac_ref))
-					clk_disable_unprepare(
-						bsp_priv->clk_mac_ref);
-
-				if (!IS_ERR(bsp_priv->clk_mac_refout))
-					clk_disable_unprepare(
-						bsp_priv->clk_mac_refout);
-			}
-
-			if (!IS_ERR(bsp_priv->aclk_mac))
-				clk_disable_unprepare(bsp_priv->aclk_mac);
-
-			if (!IS_ERR(bsp_priv->pclk_mac))
-				clk_disable_unprepare(bsp_priv->pclk_mac);
-
-			if (!IS_ERR(bsp_priv->mac_clk_tx))
-				clk_disable_unprepare(bsp_priv->mac_clk_tx);
-			/**
-			 * if (!IS_ERR(bsp_priv->clk_mac))
-			 *	clk_disable_unprepare(bsp_priv->clk_mac);
-			 */
-			bsp_priv->clk_enabled = false;
-		}
+		if (!IS_ERR(bsp_priv->clk_mac_refout))
+			clk_prepare_enable(bsp_priv->clk_mac_refout);
 	}
+
+	if (!IS_ERR(bsp_priv->aclk_mac))
+		clk_prepare_enable(bsp_priv->aclk_mac);
+
+	if (!IS_ERR(bsp_priv->pclk_mac))
+		clk_prepare_enable(bsp_priv->pclk_mac);
+
+	if (!IS_ERR(bsp_priv->mac_clk_tx))
+		clk_prepare_enable(bsp_priv->mac_clk_tx);
+
+	mdelay(5);
+
+	return 0;
+}
+
+static int rk_gmac_clk_disable(struct rk_priv_data *bsp_priv)
+{
+	if (bsp_priv->phy_iface == PHY_INTERFACE_MODE_RMII) {
+		if (!IS_ERR(bsp_priv->mac_clk_rx))
+			clk_disable_unprepare(bsp_priv->mac_clk_rx);
+
+		if (!IS_ERR(bsp_priv->clk_mac_ref))
+			clk_disable_unprepare(bsp_priv->clk_mac_ref);
+
+		if (!IS_ERR(bsp_priv->clk_mac_refout))
+			clk_disable_unprepare(bsp_priv->clk_mac_refout);
+	}
+
+	if (!IS_ERR(bsp_priv->aclk_mac))
+		clk_disable_unprepare(bsp_priv->aclk_mac);
+
+	if (!IS_ERR(bsp_priv->pclk_mac))
+		clk_disable_unprepare(bsp_priv->pclk_mac);
+
+	if (!IS_ERR(bsp_priv->mac_clk_tx))
+		clk_disable_unprepare(bsp_priv->mac_clk_tx);
 
 	return 0;
 }
@@ -478,8 +450,7 @@ static struct rk_priv_data *rk_gmac_setup(struct platform_device *pdev,
 		dev_err(dev, "Can not read property: clock_in_out.\n");
 		bsp_priv->clock_input = true;
 	} else {
-		dev_info(dev, "clock input or output? (%s).\n",
-			 strings);
+		dev_info(dev, "clock input or output? (%s).\n", strings);
 		if (!strcmp(strings, "input"))
 			bsp_priv->clock_input = true;
 		else
@@ -490,8 +461,7 @@ static struct rk_priv_data *rk_gmac_setup(struct platform_device *pdev,
 	if (ret) {
 		bsp_priv->tx_delay = 0x30;
 		dev_err(dev, "Can not read property: tx_delay.");
-		dev_err(dev, "set tx_delay to 0x%x\n",
-			bsp_priv->tx_delay);
+		dev_err(dev, "set tx_delay to 0x%x\n", bsp_priv->tx_delay);
 	} else {
 		dev_info(dev, "TX delay(0x%x).\n", value);
 		bsp_priv->tx_delay = value;
@@ -501,8 +471,7 @@ static struct rk_priv_data *rk_gmac_setup(struct platform_device *pdev,
 	if (ret) {
 		bsp_priv->rx_delay = 0x10;
 		dev_err(dev, "Can not read property: rx_delay.");
-		dev_err(dev, "set rx_delay to 0x%x\n",
-			bsp_priv->rx_delay);
+		dev_err(dev, "set rx_delay to 0x%x\n", bsp_priv->rx_delay);
 	} else {
 		dev_info(dev, "RX delay(0x%x).\n", value);
 		bsp_priv->rx_delay = value;
@@ -527,30 +496,6 @@ static struct rk_priv_data *rk_gmac_setup(struct platform_device *pdev,
 	gmac_clk_init(bsp_priv);
 
 	return bsp_priv;
-}
-
-static int rk_gmac_init(struct platform_device *pdev, void *priv)
-{
-	struct rk_priv_data *bsp_priv = priv;
-	int ret;
-
-	ret = phy_power_on(bsp_priv, true);
-	if (ret)
-		return ret;
-
-	ret = gmac_clk_enable(bsp_priv, true);
-	if (ret)
-		return ret;
-
-	return 0;
-}
-
-static void rk_gmac_exit(struct platform_device *pdev, void *priv)
-{
-	struct rk_priv_data *gmac = priv;
-
-	phy_power_on(gmac, false);
-	gmac_clk_enable(gmac, false);
 }
 
 static void rk_fix_speed(void *priv, unsigned int speed)
@@ -588,20 +533,62 @@ static int rk_gmac_probe(struct platform_device *pdev)
 		return PTR_ERR(plat_dat);
 
 	plat_dat->has_gmac = true;
-	plat_dat->init = rk_gmac_init;
-	plat_dat->exit = rk_gmac_exit;
 	plat_dat->fix_mac_speed = rk_fix_speed;
 
 	plat_dat->bsp_priv = rk_gmac_setup(pdev, data);
 	if (IS_ERR(plat_dat->bsp_priv))
 		return PTR_ERR(plat_dat->bsp_priv);
 
-	ret = rk_gmac_init(pdev, plat_dat->bsp_priv);
+	ret = phy_power_on(plat_dat->bsp_priv, true);
+	if (ret)
+		return ret;
+
+	ret = rk_gmac_clk_enable(plat_dat->bsp_priv);
 	if (ret)
 		return ret;
 
 	return stmmac_dvr_probe(&pdev->dev, plat_dat, &stmmac_res);
 }
+
+static int rk_gmac_remove(struct platform_device *pdev)
+{
+	struct net_device *ndev = platform_get_drvdata(pdev);
+	struct rk_priv_data *gmac = get_stmmac_bsp_priv(ndev);
+	int ret = stmmac_dvr_remove(ndev);
+
+	phy_power_on(gmac, false);
+	rk_gmac_clk_disable(gmac);
+
+	return ret;
+}
+
+#ifdef CONFIG_PM_SLEEP
+static int rk_gmac_suspend(struct device *dev)
+{
+	struct net_device *ndev = dev_get_drvdata(dev);
+	struct rk_priv_data *gmac = get_stmmac_bsp_priv(ndev);
+	int ret = stmmac_suspend(ndev);
+
+	phy_power_on(gmac, false);
+	rk_gmac_clk_disable(gmac);
+
+	return ret;
+}
+
+static int rk_gmac_resume(struct device *dev)
+{
+	struct net_device *ndev = dev_get_drvdata(dev);
+	struct rk_priv_data *gmac = get_stmmac_bsp_priv(ndev);
+
+	phy_power_on(gmac, true);
+	rk_gmac_clk_enable(gmac);
+
+	return stmmac_resume(ndev);
+}
+#endif /* CONFIG_PM_SLEEP */
+
+SIMPLE_DEV_PM_OPS(rk_gmac_pm_ops, rk_gmac_suspend,
+				  rk_gmac_resume);
 
 static const struct of_device_id rk_gmac_dwmac_match[] = {
 	{ .compatible = "rockchip,rk3288-gmac", .data = &rk3288_ops },
@@ -612,10 +599,10 @@ MODULE_DEVICE_TABLE(of, rk_gmac_dwmac_match);
 
 static struct platform_driver rk_gmac_dwmac_driver = {
 	.probe  = rk_gmac_probe,
-	.remove = stmmac_pltfr_remove,
+	.remove = rk_gmac_remove,
 	.driver = {
 		.name           = "rk_gmac-dwmac",
-		.pm		= &stmmac_pltfr_pm_ops,
+		.pm		= &rk_gmac_pm_ops,
 		.of_match_table = rk_gmac_dwmac_match,
 	},
 };
