@@ -407,6 +407,13 @@ config MTD_NAND_BCM47XXNFLASH
 	  registered by bcma as platform devices. This enables driver for
 	  NAND flash memories. For now only BCM4706 is supported.
 
+config MTD_NAND_DT
+	tristate "Support for generic platform NAND driver using DT"
+	depends on HAS_IOMEM && OF
+	help
+	  This implements a generic NAND driver for on-SOC platform
+	  devices which retrives data from DT.
+
 config MTD_NAND_PLATFORM
 	tristate "Support for generic platform NAND driver"
 	depends on HAS_IOMEM
