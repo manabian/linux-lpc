@@ -210,7 +210,6 @@ struct lpc18xx_cgu_base_clk {
 		.mask = 0x1f,				\
 		.shift = 24,				\
 		.table = lpc18xx_cgu_ ##_table,		\
-		.flags = _flags,			\
 	},						\
 	.gate = {					\
 		.bit_idx = 0,				\
@@ -219,7 +218,7 @@ struct lpc18xx_cgu_base_clk {
 }
 
 static struct lpc18xx_cgu_base_clk lpc18xx_cgu_base_clks[] = {
-	LPC1XX_CGU_BASE_CLK(SAFE,	base_irc_src_ids, CLK_MUX_READ_ONLY),
+	LPC1XX_CGU_BASE_CLK(SAFE,	base_irc_src_ids,    0),
 	LPC1XX_CGU_BASE_CLK(USB0,	base_usb0_src_ids,   0),
 	LPC1XX_CGU_BASE_CLK(PERIPH,	base_common_src_ids, 0),
 	LPC1XX_CGU_BASE_CLK(USB1,	base_all_src_ids,    0),
@@ -567,11 +566,13 @@ static struct clk *lpc18xx_register_base_clk(struct lpc18xx_cgu_base_clk *clk,
 
 	lpc18xx_fill_parent_names(parents, clk->mux.table, clk->n_parents);
 
-	/* SAFE_CLK can not be turned off */
-	if (n == BASE_SAFE_CLK)
+	/* SAFE_CLK can not be turned off or change parent */
+	if (n == BASE_SAFE_CLK) {
+		clk->mux.flags = CLK_MUX_READ_ONLY;
 		return clk_register_composite(NULL, name, parents, clk->n_parents,
 					      &clk->mux.hw, &clk_mux_ops,
 					      NULL, NULL, NULL, NULL, 0);
+	}
 
 	if (clk->clk_id == BASE_USB0_CLK)
 		flags |= CLK_SET_RATE_PARENT;
