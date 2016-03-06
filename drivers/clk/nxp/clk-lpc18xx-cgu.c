@@ -10,6 +10,7 @@
 
 #include <linux/clk-provider.h>
 #include <linux/delay.h>
+#include <linux/iopoll.h>
 #include <linux/kernel.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
@@ -398,7 +399,7 @@ static int lpc18xx_pll0_set_rate(struct clk_hw *hw, unsigned long rate,
 {
 	struct lpc18xx_pll *pll = to_lpc_pll(hw);
 	u32 ctrl, stat, mdiv, m;
-	int retry = 3;
+	int ret;
 
 	if (parent_rate == 0)
 		return 0;
@@ -432,16 +433,13 @@ static int lpc18xx_pll0_set_rate(struct clk_hw *hw, unsigned long rate,
 	/* Power up PLL and wait for lock */
 	ctrl &= ~LPC18XX_PLL0_CTRL_PD;
 	clk_writel(ctrl, pll->reg + LPC18XX_CGU_PLL0USB_CTRL);
-	do {
-		udelay(10);
-		stat = clk_readl(pll->reg + LPC18XX_CGU_PLL0USB_STAT);
-		if (stat & LPC18XX_PLL0_STAT_LOCK)
-			return 0;
-	} while (retry--);
 
-	pr_warn("%s: unable to lock pll\n", __func__);
+	ret = readl_poll_timeout(pll->reg + LPC18XX_CGU_PLL0USB_STAT, stat,
+				 stat & LPC18XX_PLL0_STAT_LOCK, 10, 30);
+	if (ret)
+		pr_warn("%s: unable to lock pll\n", __func__);
 
-	return -EINVAL;
+	return ret;
 }
 
 static const struct clk_ops lpc18xx_pll0_ops = {
