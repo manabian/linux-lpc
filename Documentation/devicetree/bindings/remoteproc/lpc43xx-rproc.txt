@@ -1,0 +1,21 @@
+NXP LPC43xx Co-Processor Bindings
+----------------------------------------
+
+This binding provides support for the M0 cores processors
+found on NXP LPC43xx SoCs.
+
+Required properties:
+- compatible		Should be one of:
+				"nxp,lpc4350-rproc"
+				"nxp,lpc4370-rproc"
+- interrupts		Interrupt for inter processor communication
+- resets		Reset lines (See: ../reset/reset.txt)
+- clocks		Clock for co-processor (See: ../clock/clock-bindings.txt)
+
+Example:
+m0app {
+	compatible = "nxp,lpc4350-rproc"
+	interrupts = <1>;
+	resets = <&rgu 56>;
+	clocks = <&ccu1 CLK_CPU_M0APP>;
+};
