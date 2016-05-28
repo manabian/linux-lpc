@@ -1,0 +1,210 @@
+/*
+ * at91-sama5d3_cb-20.dtsi - Device Tree file for ShiraTech CB-20
+ *			     carrier board with AT-501 CPU module.
+ *
+ *  Copyright (C) 2016 Joachim Eastwood <manabian@gmail.com>
+ *
+ * This file is dual-licensed: you can use it either under the terms
+ * of the GPL or the X11 license, at your option. Note that this dual
+ * licensing only applies to this file, and not this project as a
+ * whole.
+ *
+ *  a) This file is free software; you can redistribute it and/or
+ *     modify it under the terms of the GNU General Public License as
+ *     published by the Free Software Foundation; either version 2 of the
+ *     License, or (at your option) any later version.
+ *
+ *     This file is distributed in the hope that it will be useful,
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ * Or, alternatively,
+ *
+ *  b) Permission is hereby granted, free of charge, to any person
+ *     obtaining a copy of this software and associated documentation
+ *     files (the "Software"), to deal in the Software without
+ *     restriction, including without limitation the rights to use,
+ *     copy, modify, merge, publish, distribute, sublicense, and/or
+ *     sell copies of the Software, and to permit persons to whom the
+ *     Software is furnished to do so, subject to the following
+ *     conditions:
+ *
+ *     The above copyright notice and this permission notice shall be
+ *     included in all copies or substantial portions of the Software.
+ *
+ *     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ *     EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ *     OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ *     NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ *     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ *     WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ *     OTHER DEALINGS IN THE SOFTWARE.
+ */
+/ {
+	compatible = "shiratech,cb-20", "atmel,sama5d3", "atmel,sama5";
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
+	ahb {
+		apb {
+			mmc0: mmc@f0000000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_mmc0_clk_cmd_dat0 &pinctrl_mmc0_dat1_3 &pinctrl_mmc0_cd>;
+				status = "okay";
+
+				slot@0 {
+					reg = <0>;
+					bus-width = <4>;
+					cd-gpios = <&pioD 17 GPIO_ACTIVE_HIGH>;
+				};
+			};
+
+			can0: can@f000c000 {
+				status = "okay";
+			};
+
+			can1: can@f8010000 {
+				status = "okay";
+			};
+
+			i2c0: i2c@f0014000 {
+				status = "okay";
+
+				tca6416_gpio: gpio@20 {
+					compatible = "ti,tca6416";
+					reg = <0x20>;
+					gpio-controller;
+					#gpio-cells = <2>;
+					interrupt-parent = <&pioE>;
+					interrupts = <20 GPIO_ACTIVE_LOW>;
+					pinctrl-names = "default";
+					pinctrl-0 = <&pinctrl_tca6416_int>;
+
+				};
+
+				i2cswitch@70 {
+					compatible = "nxp,pca9548";
+					reset-gpios = <&tca6416_gpio 2 GPIO_ACTIVE_LOW>;
+					reg = <0x70>;
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					i2c@5 {
+						reg = <0x5>;
+						#address-cells = <1>;
+						#size-cells = <0>;
+
+						tlv320aic3x: tlv320aic3x@1b {
+							compatible = "ti,tlv320aic3x";
+							reg = <0x1b>;
+						};
+					};
+				};
+			};
+
+			usart1: serial@f0020000 {
+				dmas = <0>, <0>;	/*  Do not use DMA for usart1 */
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_usart1 &pinctrl_usart1_rts_cts>;
+				status = "okay";
+			};
+
+			ssc0: ssc@f0008000 {
+				status = "okay";
+			};
+
+			macb0: ethernet@f0028000 {
+				status = "okay";
+			};
+
+			pinctrl@fffff200 {
+				board {
+					pinctrl_mmc0_cd: mmc0_cd {
+						atmel,pins =
+							<AT91_PIOD 17 AT91_PERIPH_GPIO AT91_PINCTRL_PULL_UP_DEGLITCH>;
+					};
+
+					pinctrl_pck0_as_audio_mck: pck0_as_audio_mck {
+						atmel,pins =
+							<AT91_PIOD 30 AT91_PERIPH_B AT91_PINCTRL_NONE>;
+					};
+
+					pinctrl_usb_a_vbus: usb_a_vbus {
+						atmel,pins =
+							<AT91_PIOD 29 AT91_PERIPH_GPIO AT91_PINCTRL_DEGLITCH>;
+					};
+
+					pinctrl_usb_ab_vbus_en: usb_ab_vbus_en {
+						atmel,pins =
+							<AT91_PIOD 25 AT91_PERIPH_GPIO AT91_PINCTRL_NONE
+							 AT91_PIOD 26 AT91_PERIPH_GPIO AT91_PINCTRL_NONE>;
+					};
+
+					pinctrl_tca6416_int: tca6416_int {
+						atmel,pins =
+							<AT91_PIOE 20 AT91_PERIPH_GPIO AT91_PINCTRL_PULL_UP_DEGLITCH>;
+					};
+				};
+			};
+
+			dbgu: serial@ffffee00 {
+				dmas = <0>, <0>;	/*  Do not use DMA for dbgu */
+				status = "okay";
+			};
+
+			watchdog@fffffe40 {
+				status = "okay";
+			};
+		};
+
+		usb0: gadget@00500000 {
+			atmel,vbus-gpio = <&pioD 29 GPIO_ACTIVE_HIGH>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_usb_a_vbus>;
+			status = "okay";
+		};
+
+		usb1: ohci@00600000 {
+			num-ports = <3>;
+			atmel,vbus-gpio = <&pioD 25 GPIO_ACTIVE_LOW
+					   &pioD 26 GPIO_ACTIVE_LOW
+					   0>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_usb_ab_vbus_en>;
+			status = "okay";
+		};
+
+		usb2: ehci@00700000 {
+			status = "okay";
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		d13 {
+			label = "d13:red";
+			gpios = <&tca6416_gpio 8 GPIO_ACTIVE_HIGH>;
+		};
+
+		d14 {
+			label = "d14:red";
+			gpios = <&tca6416_gpio 9 GPIO_ACTIVE_HIGH>;
+		};
+
+		d15 {
+			label = "d15:red";
+			gpios = <&tca6416_gpio 7 GPIO_ACTIVE_HIGH>;
+		};
+
+		d16 {
+			label = "d16:red";
+			gpios = <&tca6416_gpio 10 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "heartbeat";
+		};
+	};
+};
