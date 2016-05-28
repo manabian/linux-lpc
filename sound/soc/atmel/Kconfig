@@ -77,4 +77,14 @@ config SND_ATMEL_SOC_PDMIC
 	help
 	  Say Y if you want to add support for Atmel ASoC driver for boards using
 	  PDMIC.
+
+config SND_SHIRATECH_CB_20_TLV320AIC3X
+	tristate "ShiraTech ASoC driver for CB-20 board with TLV320AIC3x"
+	depends on ARCH_AT91 || COMPILE_TEST
+	depends on ATMEL_SSC && I2C && OF
+	select SND_ATMEL_SOC_SSC_DMA
+	select SND_SOC_TLV320AIC3X
+	help
+	  Say Y if you want to add support for audio on ShiraTech CB-20 carrier
+	  board with TLV320AIC3x CODEC.
 endif
