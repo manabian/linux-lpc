@@ -207,4 +207,21 @@
 			linux,default-trigger = "heartbeat";
 		};
 	};
+
+	sound {
+		compatible = "shiratech,cb-20-tlv320aic3x";
+		clocks = <&pck0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_pck0_as_audio_mck>;
+
+		atmel,model = "tlv320aic3x @ SAMA5D3";
+		atmel,audio-routing =
+			"Headphone Jack", "HPLOUT",
+			"Headphone Jack", "HPROUT",
+			"LINE1L", "Line In Jack",
+			"LINE1R", "Line In Jack";
+
+		atmel,ssc-controller = <&ssc0>;
+		atmel,audio-codec = <&tlv320aic3x>;
+	};
 };
