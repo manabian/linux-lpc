@@ -240,6 +240,7 @@ bool gpiochip_line_is_open_source(struct gpio_chip *chip, unsigned int offset);
 void *gpiochip_get_data(struct gpio_chip *chip);
 
 struct gpio_chip *gpiod_to_chip(const struct gpio_desc *desc);
+struct gpio_desc *gpiochip_get_desc(struct gpio_chip *chip, u16 hwnum);
 
 struct bgpio_pdata {
 	const char *label;
