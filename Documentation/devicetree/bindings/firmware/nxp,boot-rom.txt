@@ -1,0 +1,22 @@
+* NXP LPC boot ROM
+
+NXP LPC microcontrollers contains a boot ROM used to retrieve part information
+and access internal Flash memory and OTP memory. Note that the Flash API is not
+available on Flashless devices. Availability of the Flash API can determined at
+run-time by reading the 'CHIP ID' register in CREG.
+
+Required properties:
+- compatible: must contain the following: "nxp,lpc1850-boot-rom".
+- reg: physical base address of the ROM and length of memory mapped region.
+- syscon: handle to NXP CREG (Configuration Registers) syscon block.
+- nvmem-cells: = handle to OTP memory cell which contain the part ID.
+- nvmem-cell-names: must contain "PartID".
+
+Example:
+boot_rom: firmware@10400000 {
+	compatible = "nxp,lpc1850-boot-rom";
+	reg = <0x10400000 0x10000>;
+	syscon = <&creg>;
+	nvmem-cells = <&part_id>;
+	nvmem-cell-names = "PartID";
+};
