@@ -222,6 +222,18 @@
 			};
 		};
 
+		otp@40045000 {
+			compatible = "nxp,lpc1850-otp";
+			reg = <0x40045000 0x1000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			/* Flashless devices has part ID in OTP bank 0 */
+			part_id: identification@0 {
+				reg = <0x0 0x10>;
+			};
+		};
+
 		rtc: rtc@40046000 {
 			compatible = "nxp,lpc1850-rtc", "nxp,lpc1788-rtc";
 			reg = <0x40046000 0x1000>;
