@@ -10,7 +10,9 @@
  */
 
 #include <linux/err.h>
+#include <linux/export.h>
 #include <linux/io.h>
+#include <linux/genalloc.h>
 #include <linux/mfd/syscon.h>
 #include <linux/module.h>
 #include <linux/nvmem-consumer.h>
@@ -20,6 +22,8 @@
 #include <linux/regmap.h>
 #include <linux/spinlock.h>
 #include <linux/sys_soc.h>
+
+#include <soc/nxp/nxp_lpc_boot_rom.h>
 
 /*
  * The boot ROM on LPC18xx/43xx contain APIs to program
@@ -32,12 +36,24 @@
  */
 
 /* IAP commands */
+#define IAP_INIT		49
+#define IAP_PREPARE		50
+#define IAP_COPY_TO_FLASH	51
+#define IAP_ERASE_SECTOR	52
+#define IAP_BLANK_CHECK		53
 #define IAP_READ_PART_ID	54
 #define IAP_BOOT_CODE_VER	55
 #define IAP_READ_SERIAL_NUMBER	58
+#define IAP_ERASE_PAGE		59
 
 #define IAP_CMD_MAX_LEN		6
 #define IAP_RES_MAX_LEN		5
+
+#define IAP_BUFFER_SIZE		4096
+
+/* IAP return codes */
+#define IAP_CMD_SUCCESS		0x00
+#define IAP_BUSY		0x0b
 
 /* IAP device information */
 #define IAP_BOOT_CODE_VER_MAJOR(v)	((v >> 16) & 0xff)
@@ -71,12 +87,6 @@
 		.flash_size[0] = _sz0 * 1024,		\
 		.flash_size[1] = _sz1 * 1024,		\
 	}
-
-struct nxp_lpc_part {
-	const char *name;
-	u32 flash_size[2];
-	u32 id[2];
-};
 
 static const struct nxp_lpc_part nxp_lpc_parts[] = {
 	/* LPC18xx Flashless parts */
@@ -138,6 +148,10 @@ struct iap_rom {
 	void (*entry)(u32 *, u32 *);
 };
 
+struct otp_rom {
+	/* place holder */
+};
+
 struct nxp_rom_api {
 	struct device *dev;
 	void __iomem *rom;
@@ -152,6 +166,9 @@ struct nxp_rom_api {
 
 	struct soc_device *soc_dev;
 	struct soc_device_attribute soc_dev_attr;
+
+	struct gen_pool *sram;
+	unsigned long buf_addr;
 };
 
 static const struct nxp_lpc_part *nxp_lpc_boot_rom_find_part(u32 *id, bool flash)
@@ -175,6 +192,17 @@ static inline void iap_entry(struct nxp_rom_api *data, u32 *cmd, u32 *res)
 	spin_lock_irqsave(&data->lock, flags);
 	data->iap.entry(cmd, res);
 	spin_unlock_irqrestore(&data->lock, flags);
+}
+
+static int iap_init(struct nxp_rom_api *data)
+{
+	u32 command[IAP_CMD_MAX_LEN];
+	u32 result[IAP_RES_MAX_LEN];
+
+	command[0] = IAP_INIT;
+	iap_entry(data, command, result);
+
+	return 0;
 }
 
 static int iap_read_id(struct nxp_rom_api *data, u32 *id)
@@ -219,6 +247,149 @@ static int iap_read_serial_number(struct nxp_rom_api *data, u32 *serial)
 
 	return 0;
 }
+
+static int iap_prepare_sectors(struct nxp_rom_api *data, u32 start_sector,
+			       u32 end_sector, u32 flash_bank)
+{
+	u32 command[IAP_CMD_MAX_LEN];
+	u32 result[IAP_RES_MAX_LEN];
+
+	if (!data->part->flash_size)
+		return -ENODEV;
+
+	command[0] = IAP_PREPARE;
+	command[1] = start_sector;
+	command[2] = end_sector;
+	command[3] = flash_bank;
+	data->iap.entry(command, result);
+
+	if (result[0] == IAP_CMD_SUCCESS)
+		return 0;
+
+	dev_warn(data->dev, "%s: IAP command failed with 0x%08x\n", __func__,
+		 result[0]);
+
+	if (result[0] == IAP_BUSY)
+		return -EBUSY;
+
+	return -EINVAL;
+}
+
+int iap_erase_sectors(struct iap_rom *iap, u32 start_sector, u32 end_sector,
+		      u32 freq_khz, u32 flash_bank)
+{
+	struct nxp_rom_api *data = container_of(iap, struct nxp_rom_api, iap);
+	u32 command[IAP_CMD_MAX_LEN];
+	u32 result[IAP_RES_MAX_LEN];
+	unsigned long flags;
+	int ret;
+
+
+	spin_lock_irqsave(&data->lock, flags);
+	ret = iap_prepare_sectors(data, start_sector, end_sector, flash_bank);
+	if (ret) {
+		spin_unlock_irqrestore(&data->lock, flags);
+		return ret;
+	}
+
+	command[0] = IAP_ERASE_SECTOR;
+	command[1] = start_sector;
+	command[2] = end_sector;
+	command[3] = freq_khz;
+	command[4] = flash_bank;
+	iap->entry(command, result);
+	spin_unlock_irqrestore(&data->lock, flags);
+
+	if (result[0] == IAP_CMD_SUCCESS)
+		return 0;
+
+	dev_warn(data->dev, "%s: IAP command failed with 0x%08x\n", __func__,
+		 result[0]);
+
+	if (result[0] == IAP_BUSY)
+		return -EBUSY;
+
+	return -EINVAL;
+}
+EXPORT_SYMBOL_GPL(iap_erase_sectors);
+
+int iap_copy_to_flash(struct iap_rom *iap, u32 start_sector, u32 end_sector,
+		      void __iomem *dst, const void *src, u32 size,
+		      u32 freq_khz, u32 flash_bank)
+{
+	struct nxp_rom_api *data = container_of(iap, struct nxp_rom_api, iap);
+	u32 command[IAP_CMD_MAX_LEN];
+	u32 result[IAP_RES_MAX_LEN];
+	unsigned long flags;
+	int ret;
+
+	if (size > IAP_BUFFER_SIZE)
+		return -EINVAL;
+
+	spin_lock_irqsave(&data->lock, flags);
+	ret = iap_prepare_sectors(data, start_sector, end_sector, flash_bank);
+	if (ret) {
+		spin_unlock_irqrestore(&data->lock, flags);
+		return ret;
+	}
+
+	memcpy((void *)data->buf_addr, src, size);
+
+	command[0] = IAP_COPY_TO_FLASH;
+	command[1] = (unsigned long)dst;
+	command[2] = data->buf_addr;
+	command[3] = size;
+	command[4] = freq_khz;
+	dev_info(data->dev, "%s: cmd[0] = 0x%08x, cmd[1] = 0x%08x, cmd[2] = 0x%08x, cmd[3] = 0x%08x, cmd[4] = 0x%08x\n", __func__, command[0], command[1], command[2], command[3], command[4]);
+	iap->entry(command, result);
+	spin_unlock_irqrestore(&data->lock, flags);
+
+	if (result[0] == IAP_CMD_SUCCESS)
+		return 0;
+
+	dev_warn(data->dev, "%s: IAP command failed with 0x%08x\n", __func__,
+		 result[0]);
+
+	if (result[0] == IAP_BUSY)
+		return -EBUSY;
+
+	return -EINVAL;
+}
+EXPORT_SYMBOL_GPL(iap_copy_to_flash);
+
+const struct nxp_lpc_part *iap_get_part_info(struct iap_rom *iap)
+{
+	struct nxp_rom_api *data = container_of(iap, struct nxp_rom_api, iap);
+	return data->part;
+}
+EXPORT_SYMBOL_GPL(iap_get_part_info);
+
+struct iap_rom *nxp_rom_iap_lookup(struct device_node *np, const char *prop)
+{
+	struct nxp_rom_api *data = NULL;
+	struct platform_device *pdev;
+	struct device_node *fw_node;
+
+	if (prop)
+		fw_node = of_parse_phandle(np, prop, 0);
+	else
+		fw_node = np;
+
+	if (!fw_node)
+		return ERR_PTR(-ENODEV);
+
+	pdev = of_find_device_by_node(fw_node);
+	of_node_put(fw_node);
+	if (!pdev)
+		return ERR_PTR(-ENODEV);
+
+	data = platform_get_drvdata(pdev);
+	if (data && data->has_iap)
+		return &data->iap;
+
+	return ERR_PTR(-EPROBE_DEFER);
+}
+EXPORT_SYMBOL_GPL(nxp_rom_iap_lookup);
 
 static int nxp_get_flashless_part_id(struct nxp_rom_api *data)
 {
@@ -272,6 +443,20 @@ static int nxp_lpc_boot_rom_iap_setup(struct nxp_rom_api *data)
 	data->soc_dev_attr.soc_id = devm_kasprintf(data->dev, GFP_KERNEL,
 						   "%08x%08x%08x%08x", ser[0],
 						   ser[1], ser[2], ser[3]);
+
+	data->sram = of_gen_pool_get(data->dev->of_node, "sram", 0);
+	if (!data->sram) {
+		dev_err(data->dev, "sram unavailable\n");
+		return -ENODEV;
+	}
+
+	data->buf_addr = gen_pool_alloc(data->sram, IAP_BUFFER_SIZE);
+	if (!data->buf_addr) {
+		dev_err(data->dev, "sram memory full\n");
+		return -ENOMEM;
+	}
+
+	iap_init(data);
 
 	return 0;
 }
@@ -385,6 +570,9 @@ static int nxp_lpc_boot_rom_remove(struct platform_device *pdev)
 	struct nxp_rom_api *data = platform_get_drvdata(pdev);
 
 	soc_device_unregister(data->soc_dev);
+
+	if (data->has_iap)
+		gen_pool_free(data->sram, data->buf_addr, IAP_BUFFER_SIZE);
 
 	return 0;
 }
