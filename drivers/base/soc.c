@@ -5,6 +5,7 @@
  * License terms:  GNU General Public License (GPL), version 2
  */
 
+#include <linux/export.h>
 #include <linux/sysfs.h>
 #include <linux/init.h>
 #include <linux/stat.h>
@@ -152,6 +153,7 @@ out2:
 out1:
 	return ERR_PTR(ret);
 }
+EXPORT_SYMBOL_GPL(soc_device_register);
 
 /* Ensure soc_dev->attr is freed prior to calling soc_device_unregister. */
 void soc_device_unregister(struct soc_device *soc_dev)
@@ -160,6 +162,7 @@ void soc_device_unregister(struct soc_device *soc_dev)
 
 	device_unregister(&soc_dev->dev);
 }
+EXPORT_SYMBOL_GPL(soc_device_unregister);
 
 static int __init soc_bus_register(void)
 {
