@@ -429,6 +429,8 @@ pca9532_of_populate_pdata(struct device *dev, struct pca9532_data *data)
 	if (!pdata)
 		return ERR_PTR(-ENOMEM);
 
+	pdata->gpio_base = -1;
+
 	for_each_child_of_node(np, child) {
 		u32 reg;
 		int res;

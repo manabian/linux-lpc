@@ -56,6 +56,38 @@
 		regulator-max-microvolt = <3300000>;
 	};
 
+	gpio_keys {
+		compatible = "gpio-keys-polled";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		poll-interval = <100>;
+		autorepeat;
+
+		key1 {
+			label = "key1";
+			linux,code = <KEY_1>;
+			gpios = <&pca9532 0 GPIO_ACTIVE_LOW>;
+		};
+
+		key2 {
+			label = "key2";
+			linux,code = <KEY_2>;
+			gpios = <&pca9532 1 GPIO_ACTIVE_LOW>;
+		};
+
+		key3 {
+			label = "key3";
+			linux,code = <KEY_3>;
+			gpios = <&pca9532 2 GPIO_ACTIVE_LOW>;
+		};
+
+		key4 {
+			label = "key4";
+			linux,code = <KEY_4>;
+			gpios = <&pca9532 3 GPIO_ACTIVE_LOW>;
+		};
+	};
+
 	gpio_joystick {
 		compatible = "gpio-keys";
 		pinctrl-names = "default";
@@ -607,9 +639,31 @@
 
 	pca9532: leds@60 {
 		compatible = "nxp,pca9532";
+		gpio-controller;
 		reg = <0x60>;
 		#address-cells = <1>;
 		#size-cells = <0>;
+		#gpio-cells = <2>;
+
+		key1@0 {
+			type = <PCA9532_TYPE_GPIO>;
+			reg = <0>;
+		};
+
+		key2@1 {
+			type = <PCA9532_TYPE_GPIO>;
+			reg = <1>;
+		};
+
+		key3@2 {
+			type = <PCA9532_TYPE_GPIO>;
+			reg = <2>;
+		};
+
+		key4@3 {
+			type = <PCA9532_TYPE_GPIO>;
+			reg = <3>;
+		};
 
 		led1@8 {
 			label = "led1:red";
