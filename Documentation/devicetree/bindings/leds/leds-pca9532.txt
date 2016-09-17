@@ -16,6 +16,8 @@ Each led is represented as a sub-node of the nxp,pca9530.
 Optional sub-node properties:
 	- label: see Documentation/devicetree/bindings/leds/common.txt
 	- type: Output configuration, see dt-bindings/leds/leds-pca9532.h (default NONE)
+	- reg : number of LED line (could be from 0 to 1 in pca9630, 0 to 4 in pca9533,
+		0 to 7 in pca9631, or 0 to 15 in pca9632)
 	- linux,default-trigger: see Documentation/devicetree/bindings/leds/common.txt
 
 Example:
@@ -23,15 +25,19 @@ Example:
 
   leds: pca9530@60 {
     compatible = "nxp,pca9530";
+    #address-cells = <1>;
+    #size-cells = <0>;
     reg = <0x60>;
 
-    red-power {
+    red-power@0 {
       label = "pca:red:power";
       type = <PCA9532_TYPE_LED>;
+      reg = <0>;
     };
-    green-power {
+    green-power@1 {
       label = "pca:green:power";
       type = <PCA9532_TYPE_LED>;
+      reg = <1>;
     };
   };
 

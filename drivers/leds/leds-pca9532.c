@@ -455,7 +455,6 @@ pca9532_of_populate_pdata(struct device *dev, struct device_node *np)
 	struct device_node *child;
 	const struct of_device_id *match;
 	int devid, maxleds;
-	int i = 0;
 
 	match = of_match_device(of_pca9532_leds_match, dev);
 	if (!match)
@@ -469,16 +468,24 @@ pca9532_of_populate_pdata(struct device *dev, struct device_node *np)
 		return ERR_PTR(-ENOMEM);
 
 	for_each_child_of_node(np, child) {
-		if (of_property_read_string(child, "label",
-					    &pdata->leds[i].name))
-			pdata->leds[i].name = child->name;
-		of_property_read_u32(child, "type", &pdata->leds[i].type);
-		of_property_read_string(child, "linux,default-trigger",
-					&pdata->leds[i].default_trigger);
-		if (++i >= maxleds) {
+		u32 reg;
+		int res;
+
+		res = of_property_read_u32(child, "reg", &reg);
+		if ((res != 0) || (reg >= maxleds)) {
 			of_node_put(child);
-			break;
+			continue;
 		}
+
+		if (of_property_read_string(child, "label",
+					    &pdata->leds[reg].name))
+			pdata->leds[reg].name = child->name;
+
+		of_property_read_u32(child, "type", &pdata->leds[reg].type);
+		of_property_read_string(child, "linux,default-trigger",
+					&pdata->leds[reg].default_trigger);
+
+		of_node_put(child);
 	}
 
 	return pdata;
