@@ -443,7 +443,7 @@ pca9532_of_populate_pdata(struct device *dev, struct pca9532_data *data)
 					    &pdata->leds[reg].name))
 			pdata->leds[reg].name = child->name;
 
-		pdata->leds[reg].type = PCA9532_TYPE_LED;
+		of_property_read_u32(child, "type", &pdata->leds[reg].type);
 		of_property_read_string(child, "linux,default-trigger",
 					&pdata->leds[reg].default_trigger);
 
