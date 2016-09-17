@@ -52,26 +52,12 @@ struct pca9532_data {
 	u8 psc[2];
 };
 
-static int pca9532_probe(struct i2c_client *client,
-	const struct i2c_device_id *id);
-static int pca9532_remove(struct i2c_client *client);
-
 enum {
 	pca9530,
 	pca9531,
 	pca9532,
 	pca9533,
 };
-
-static const struct i2c_device_id pca9532_id[] = {
-	{ "pca9530", pca9530 },
-	{ "pca9531", pca9531 },
-	{ "pca9532", pca9532 },
-	{ "pca9533", pca9533 },
-	{ }
-};
-
-MODULE_DEVICE_TABLE(i2c, pca9532_id);
 
 static const struct pca9532_chip_info pca9532_chip_info_tbl[] = {
 	[pca9530] = {
@@ -86,28 +72,6 @@ static const struct pca9532_chip_info pca9532_chip_info_tbl[] = {
 	[pca9533] = {
 		.num_leds = 4,
 	},
-};
-
-#ifdef CONFIG_OF
-static const struct of_device_id of_pca9532_leds_match[] = {
-	{ .compatible = "nxp,pca9530", .data = &pca9532_chip_info_tbl[pca9530] },
-	{ .compatible = "nxp,pca9531", .data = &pca9532_chip_info_tbl[pca9531] },
-	{ .compatible = "nxp,pca9532", .data = &pca9532_chip_info_tbl[pca9532] },
-	{ .compatible = "nxp,pca9533", .data = &pca9532_chip_info_tbl[pca9533] },
-	{},
-};
-
-MODULE_DEVICE_TABLE(of, of_pca9532_leds_match);
-#endif
-
-static struct i2c_driver pca9532_driver = {
-	.driver = {
-		.name = "leds-pca953x",
-		.of_match_table = of_match_ptr(of_pca9532_leds_match),
-	},
-	.probe = pca9532_probe,
-	.remove = pca9532_remove,
-	.id_table = pca9532_id,
 };
 
 /* We have two pwm/blinkers, but 16 possible leds to drive. Additionally,
@@ -538,6 +502,33 @@ static int pca9532_remove(struct i2c_client *client)
 	return 0;
 }
 
+static const struct i2c_device_id pca9532_id[] = {
+	{ "pca9530", pca9530 },
+	{ "pca9531", pca9531 },
+	{ "pca9532", pca9532 },
+	{ "pca9533", pca9533 },
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, pca9532_id);
+
+static const struct of_device_id of_pca9532_leds_match[] = {
+	{ .compatible = "nxp,pca9530", .data = &pca9532_chip_info_tbl[pca9530] },
+	{ .compatible = "nxp,pca9531", .data = &pca9532_chip_info_tbl[pca9531] },
+	{ .compatible = "nxp,pca9532", .data = &pca9532_chip_info_tbl[pca9532] },
+	{ .compatible = "nxp,pca9533", .data = &pca9532_chip_info_tbl[pca9533] },
+	{},
+};
+MODULE_DEVICE_TABLE(of, of_pca9532_leds_match);
+
+static struct i2c_driver pca9532_driver = {
+	.driver = {
+		.name = "leds-pca953x",
+		.of_match_table = of_match_ptr(of_pca9532_leds_match),
+	},
+	.probe = pca9532_probe,
+	.remove = pca9532_remove,
+	.id_table = pca9532_id,
+};
 module_i2c_driver(pca9532_driver);
 
 MODULE_AUTHOR("Riku Voipio");
