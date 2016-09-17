@@ -18,7 +18,6 @@
 #include "dt-bindings/input/input.h"
 #include "dt-bindings/interrupt-controller/irq.h"
 #include "dt-bindings/gpio/gpio.h"
-#include "dt-bindings/leds/leds-pca9532.h"
 
 / {
 	model = "Embedded Artists' LPC4357 Developer's Kit";
@@ -613,49 +612,41 @@
 
 		led1@8 {
 			label = "led1:red";
-			type = <PCA9532_TYPE_LED>;
 			reg = <8>;
 		};
 
 		led2@9 {
 			label = "led2:red";
-			type = <PCA9532_TYPE_LED>;
 			reg = <9>;
 		};
 
 		led3@10 {
 			label = "led3:red";
-			type = <PCA9532_TYPE_LED>;
 			reg = <10>;
 		};
 
 		led4@11 {
 			label = "led4:red";
-			type = <PCA9532_TYPE_LED>;
 			reg = <11>;
 		};
 
 		led5@12 {
 			label = "led5:green";
-			type = <PCA9532_TYPE_LED>;
 			reg = <12>;
 		};
 
 		led6@13 {
 			label = "led6:green";
-			type = <PCA9532_TYPE_LED>;
 			reg = <13>;
 		};
 
 		led7@14 {
 			label = "led7:green";
-			type = <PCA9532_TYPE_LED>;
 			reg = <14>;
 		};
 
 		led8@15 {
 			label = "led8:green";
-			type = <PCA9532_TYPE_LED>;
 			reg = <15>;
 		};
 	};
