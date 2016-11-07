@@ -402,8 +402,9 @@
 			compatible = "nxp,lpc1850-gpio-pint";
 			reg = <0x40087000 0x1000>;
 			interrupt-controller;
+			interrupt-parent = <&nvic>;
 			#interrupt-cells = <2>;
-			interrupts = <32 33 34 35 36 37 38 39>;
+			/* interrupts = <32 33 34 35 36 37 38 39>; */
 			clocks = <&ccu1 CLK_CPU_GPIO>;
 		};
 
@@ -636,4 +637,8 @@
 					<&pinctrl LPC_GPIO(7,19) LPC_PIN(f,5)  7>;
 		};
 	};
+};
+
+&nvic {
+	interrupt-parent = <&nvic>;
 };

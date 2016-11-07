@@ -127,12 +127,15 @@ static int lpc18xx_gpio_pint_domain_alloc(struct irq_domain *domain,
 	irq_hw_number_t hwirq;
 	int i;
 
+	pr_err("%s\n", __func__);
+
 	if (!irq_domain_get_of_node(domain->parent))
 		return -EINVAL;
 
 	if (fwspec->param_count != 2)
 		return -EINVAL;
 
+	pr_err("%s for loop\n", __func__);
 	hwirq = fwspec->param[0];
 	for (i = 0; i < nr_irqs; i++) {
 		pr_err("%s: hwirq %lu\n", __func__, hwirq);
@@ -155,8 +158,12 @@ static int lpc18xx_gpio_pint_domain_translate(struct irq_domain *d,
 					      unsigned long *hwirq,
 					      unsigned int *type)
 {
+	pr_err("%s\n", __func__);
+
 	if (WARN_ON(fwspec->param_count < 2))
 		return -EINVAL;
+
+	pr_err("%s set hwirq/type\n", __func__);
 
 	*hwirq = fwspec->param[0];
 	*type = fwspec->param[1] & IRQ_TYPE_SENSE_MASK;
@@ -228,6 +235,8 @@ static int lpc18xx_gpio_pint_probe(struct platform_device *pdev)
 		clk_disable_unprepare(pint->clk);
 		return -ENOMEM;
 	}
+
+	pr_err("%s: WTF\n", __func__);
 
 	return 0;
 }
