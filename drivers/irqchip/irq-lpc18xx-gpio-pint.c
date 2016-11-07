@@ -8,13 +8,18 @@
  * published by the Free Software Foundation.
  */
 
+#define pr_fmt(fmt) "%s: " fmt, __func__
+
 #include <linux/clk.h>
 #include <linux/init.h>
 #include <linux/irq.h>
+#include <linux/irqchip.h>
 #include <linux/irqdomain.h>
 #include <linux/of.h>
+#include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/platform_device.h>
+#include <linux/slab.h>
 #include <linux/spinlock.h>
 
 /* LPC18xx GPIO pin interrupt register offsets */
@@ -29,9 +34,7 @@
 #define LPC18XX_GPIO_PINT_IRQ_OFFSET	32
 
 struct lpc18xx_gpio_pint_chip {
-	struct irq_domain *domain;
 	void __iomem	  *base;
-	struct clk	  *clk;
 	spinlock_t	  *lock;
 	unsigned	  irq_offset;
 	u32		  type_cache;
@@ -177,45 +180,43 @@ static const struct irq_domain_ops lpc18xx_gpio_pint_irq_domain_ops = {
 	.free = irq_domain_free_irqs_common,
 };
 
-static int lpc18xx_gpio_pint_probe(struct platform_device *pdev)
+static int __init lpc18xx_gpio_pint_init(struct device_node *node,
+					 struct device_node *parent)
 {
-	struct device_node *parent, *np = pdev->dev.of_node;
+	struct irq_domain *domain, *domain_parent;
 	struct lpc18xx_gpio_pint_chip *pint;
-	struct irq_domain *domain_parent;
-	struct resource *regs;
+	struct clk *clk;
 	int ret;
-
-	parent = of_irq_find_parent(np);
-	if (!parent) {
-		dev_err(&pdev->dev, "irq find parent failed\n");
-		return -ENXIO;
-	}
 
 	domain_parent = irq_find_host(parent);
 	if (!domain_parent) {
-		dev_err(&pdev->dev, "interrupt-parent not found\n");
+		pr_err("interrupt-parent not found\n");
 		return -EINVAL;
 	}
 
-	pint = devm_kzalloc(&pdev->dev, sizeof(*pint), GFP_KERNEL);
-	if (!pint)
-		return -ENOMEM;
-
-	regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	pint->base = devm_ioremap_resource(&pdev->dev, regs);
-	if (IS_ERR(pint->base))
-		return PTR_ERR(pint->base);
-
-	pint->clk = devm_clk_get(&pdev->dev, NULL);
-	if (IS_ERR(pint->clk)) {
-		dev_err(&pdev->dev, "input clock not found\n");
-		return PTR_ERR(pint->clk);
+	clk = of_clk_get_by_name(node, NULL);
+	if (IS_ERR(clk)) {
+		pr_err("clock get failed (%ld)\n", PTR_ERR(clk));
+		return PTR_ERR(clk);
 	}
 
-	ret = clk_prepare_enable(pint->clk);
+	ret = clk_prepare_enable(clk);
 	if (ret) {
-		dev_err(&pdev->dev, "unable to enable clock\n");
-		return ret;
+		pr_err("clock enable failed (%d)\n", ret);
+		goto err_clk_enable;
+	}
+
+	pint = kzalloc(sizeof(*pint), GFP_KERNEL);
+	if (!pint) {
+		ret = -ENOMEM;
+		goto err_alloc;
+	}
+
+	pint->base = of_io_request_and_map(node, 0, NULL);
+	if (IS_ERR(pint->base)) {
+		pr_err("unable to map register\n");
+		ret = PTR_ERR(pint->base);
+		goto err_map;
 	}
 
 	spin_lock_init(pint->lock);
@@ -227,30 +228,25 @@ static int lpc18xx_gpio_pint_probe(struct platform_device *pdev)
 	writel(0,  pint->base + LPC18XX_GPIO_PINT_ISEL);
 	writel(~0, pint->base + LPC18XX_GPIO_PINT_IST);
 
-	pint->domain = irq_domain_add_hierarchy(domain_parent, 0,
-					  LPC18XX_GPIO_PINT_IRQS, np,
+	domain = irq_domain_add_hierarchy(domain_parent, 0,
+					  LPC18XX_GPIO_PINT_IRQS, node,
 					  &lpc18xx_gpio_pint_irq_domain_ops,
 					  pint);
-	if (!pint->domain) {
-		clk_disable_unprepare(pint->clk);
-		return -ENOMEM;
+	if (!domain) {
+		ret = -ENOMEM;
+		goto err_irq_domain;
 	}
 
-	pr_err("%s: WTF\n", __func__);
-
 	return 0;
+
+err_irq_domain:
+	iounmap(pint->base);
+err_map:
+	kfree(pint);
+err_alloc:
+	clk_disable_unprepare(clk);
+err_clk_enable:
+	clk_put(clk);
+	return ret;
 }
-
-static const struct of_device_id lpc18xx_gpio_pint_match[] = {
-	{ .compatible = "nxp,lpc1850-gpio-pint" },
-	{ }
-};
-
-static struct platform_driver lpc18xx_gpio_pint_driver = {
-	.probe	= lpc18xx_gpio_pint_probe,
-	.driver	= {
-		.name = "lpc18xx-gpio-pint",
-		.of_match_table = lpc18xx_gpio_pint_match,
-	},
-};
-builtin_platform_driver(lpc18xx_gpio_pint_driver);
+IRQCHIP_DECLARE(lpc18xx_gpio_pint, "nxp,lpc1850-gpio-pint", lpc18xx_gpio_pint_init);
